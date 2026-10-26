@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMUCHAN - Gift & Custom 3D</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        black: '#000000',
+                        white: '#FFFFFF',
+                        gray: {
+                            50: '#F9FAFB',
+                            100: '#F3F4F6',
+                            200: '#E5E7EB',
+                            300: '#D1D5DB',
+                            800: '#1F2937',
+                            900: '#111827',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FFFFFF;
+            color: #000000;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Hide scrollbar for cleaner look in some areas */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const MOCK_PRODUCTS = [
+            { id: 1, name: "Tượng Chibi Custom theo ảnh", price: 350000, category: "Custom", image: "https://placehold.co/600x600/f3f4f6/1f2937?text=Chibi+Custom", badge: "Bán chạy", colors: ["Trắng", "Đen", "Sơn tay"], sizes: ["Nhỏ (5cm)", "Vừa (10cm)", "Lớn (15cm)"], basePrice: 350000, stockQuantity: 100 },
+            { id: 2, name: "Đèn ngủ 3D Mặt Trăng", price: 250000, category: "Quà tặng", image: "https://placehold.co/600x600/f3f4f6/1f2937?text=Moon+Lamp", badge: "Mới", colors: ["Trắng ấm", "Trắng sáng"], sizes: ["Đường kính 10cm", "Đường kính 15cm"], basePrice: 250000, stockQuantity: 50 },
+            { id: 3, name: "Móc khóa Logo Doanh Nghiệp in nổi", price: 45000, category: "Custom", image: "https://placehold.co/600x600/f3f4f6/1f2937?text=Keychain", colors: ["Đen/Trắng", "Trắng/Đỏ"], sizes: ["Tiêu chuẩn"], basePrice: 45000, stockQuantity: 200 },
+            { id: 4, name: "Giá đỡ điện thoại Minimal", price: 85000, category: "Trang trí", image: "https://placehold.co/600x600/f3f4f6/1f2937?text=Phone+Stand", colors: ["Đen nhám", "Trắng mờ", "Xám"], sizes: ["Tiêu chuẩn"], basePrice: 85000, stockQuantity: 0 },
+            { id: 5, name: "Lọ hoa đa giác 3D", price: 150000, category: "Trang trí", image: "https://placehold.co/600x600/f3f4f6/1f2937?text=Vase", colors: ["Trắng", "Đen"], sizes: ["Cao 15cm", "Cao 20cm"], basePrice: 150000, stockQuantity: 20 },
+            { id: 6, name: "Bảng tên để bàn Custom", price: 200000, category: "Custom", image: "https://placehold.co/600x600/f3f4f6/1f2937?text=Name+Tag", colors: ["Đen/Trắng", "Xám/Đen"], sizes: ["Vừa", "Lớn"], basePrice: 200000, stockQuantity: 100 },
+        ];
+
+        const formatPrice = (price) => {
+            return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "đ";
+        };
+
+        const Header = ({ setView, cartCount, isVisualEditor }) => (
+            <header className={`${isVisualEditor ? 'relative' : 'sticky top-0'} z-50 bg-white/90 backdrop-blur-md border-b border-gray-100`}>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex justify-between items-center h-16">
+                        {/* Logo */}
+                        <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => !isVisualEditor && setView('home')}>
+                            <span className="font-bold text-2xl tracking-tighter">SAMU<span className="text-gray-400">CHAN</span></span>
+                        </div>
+
+                        {/* Desktop Nav */}
+                        <nav className="hidden md:flex space-x-8">
+                            <button onClick={() => !isVisualEditor && setView('home')} className="text-gray-900 hover:text-gray-600 text-sm font-medium transition-colors">Trang chủ</button>
+                            <button onClick={() => !isVisualEditor && setView('shop')} className="text-gray-900 hover:text-gray-600 text-sm font-medium transition-colors">Sản phẩm</button>
+                            <button onClick={() => !isVisualEditor && setView('tracking_login')} className="text-gray-900 hover:text-gray-600 text-sm font-medium transition-colors">Theo dõi đơn</button>
+                            {!isVisualEditor && (
+                                <button onClick={() => setView('admin')} className="text-gray-400 hover:text-gray-900 text-sm font-medium transition-colors border border-gray-200 px-2 py-1 rounded">Admin Demo</button>
+                            )}
+                        </nav>
+
+                        {/* Cart & Mobile Menu */}
+                        <div className="flex items-center space-x-4">
+                            <button onClick={() => !isVisualEditor && setView('cart')} className={`relative text-gray-900 hover:text-gray-600 transition-colors p-2 ${isVisualEditor ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <i className="ph ph-shopping-bag text-2xl"></i>
+                                {cartCount > 0 && (
+                                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-black rounded-full">
+                                        {cartCount}
+                                    </span>
+                                )}
+                            </button>
+                            <button className="md:hidden text-gray-900 p-2">
+                                <i className="ph ph-list text-2xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+        );
+
+        const Footer = () => (
+            <footer className="bg-white border-t border-gray-100 mt-20">
+                <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                        <div className="col-span-1 md:col-span-2">
+                            <span className="font-bold text-2xl tracking-tighter block mb-4">SAMU<span className="text-gray-400">CHAN</span></span>
+                            <p className="text-gray-500 text-sm mb-4 max-w-sm">
+                                Chuyên thiết kế, sản xuất quà tặng và đồ trang trí bằng công nghệ in 3D hiện đại. Độc bản - Tinh tế - Nhanh chóng.
+                            </p>
+                            <div className="flex space-x-4">
+                                <a href="#" className="text-gray-400 hover:text-black transition-colors"><i className="ph ph-facebook-logo text-2xl"></i></a>
+                                <a href="#" className="text-gray-400 hover:text-black transition-colors"><i className="ph ph-instagram-logo text-2xl"></i></a>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-semibold text-black tracking-wider uppercase mb-4">Sản phẩm</h3>
+                            <ul className="space-y-2 text-sm text-gray-500">
+                                <li><a href="#" className="hover:text-black transition-colors">Quà tặng Custom</a></li>
+                                <li><a href="#" className="hover:text-black transition-colors">Đồ trang trí</a></li>
+                                <li><a href="#" className="hover:text-black transition-colors">Văn phòng phẩm</a></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-semibold text-black tracking-wider uppercase mb-4">Liên hệ</h3>
+                            <ul className="space-y-2 text-sm text-gray-500">
+                                <li>Zalo: 0123 456 789</li>
+                                <li>Email: hello@samuchan.com</li>
+                                <li>Địa chỉ: Quận 1, TP.HCM</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div className="mt-12 border-t border-gray-100 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-400">
+                        <p>&copy; 2024 SAMUCHAN. All rights reserved.</p>
+                        <p>Minimalist 3D Printing Studio</p>
+                    </div>
+                </div>
+            </footer>
+        );
+
+        const Home = ({ setView, products, siteConfig, setSiteConfig, isVisualEditor }) => {
+            const [isEditingHero, setIsEditingHero] = useState(false);
+            const [localConfig, setLocalConfig] = useState(siteConfig);
+
+            const handleSaveHero = (e) => {
+                e.preventDefault();
+                setSiteConfig(localConfig);
+                setIsEditingHero(false);
+            };
+
+            return (
+                <div className="fade-in">
+                    {/* Hero Section */}
+                    <div className={`relative bg-white overflow-hidden ${isVisualEditor ? 'border-2 border-dashed border-indigo-400 hover:bg-indigo-50/30 transition-all m-4 rounded-xl' : ''}`}>
+                        
+                        {isVisualEditor && !isEditingHero && (
+                            <button onClick={() => {setLocalConfig(siteConfig); setIsEditingHero(true)}} className="absolute top-4 right-4 z-20 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm shadow-lg flex items-center hover:bg-indigo-700 fade-in">
+                                <i className="ph ph-pencil-simple mr-2"></i> Chỉnh sửa Banner
+                            </button>
+                        )}
+
+                        {isEditingHero && (
+                            <div className="absolute inset-0 bg-white/95 z-30 p-4 sm:p-8 flex flex-col justify-center items-center backdrop-blur-sm fade-in">
+                                <form onSubmit={handleSaveHero} className="w-full max-w-2xl bg-white p-6 rounded-xl shadow-2xl border border-gray-100 relative">
+                                    <button type="button" onClick={() => setIsEditingHero(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black">
+                                        <i className="ph ph-x text-2xl"></i>
+                                    </button>
+                                    <h3 className="text-xl font-bold mb-4 text-black">Chỉnh sửa Banner Trang chủ</h3>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">Tiêu đề dòng 1</label>
+                                                <input type="text" value={localConfig.heroTitle1} onChange={e => setLocalConfig({...localConfig, heroTitle1: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">Tiêu đề dòng 2 (Nhạt)</label>
+                                                <input type="text" value={localConfig.heroTitle2} onChange={e => setLocalConfig({...localConfig, heroTitle2: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" required />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">Đoạn mô tả ngắn</label>
+                                            <textarea value={localConfig.heroDesc} onChange={e => setLocalConfig({...localConfig, heroDesc: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" rows="3" required></textarea>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">Link Ảnh Banner (URL)</label>
+                                            <input type="text" value={localConfig.heroImage} onChange={e => setLocalConfig({...localConfig, heroImage: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" required />
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 flex space-x-3">
+                                        <button type="submit" className="bg-indigo-600 text-white px-6 py-2 rounded text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">Xác nhận (Preview)</button>
+                                        <button type="button" onClick={() => setIsEditingHero(false)} className="bg-gray-100 text-gray-700 px-6 py-2 rounded text-sm font-medium hover:bg-gray-200 transition-colors">Hủy</button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
+                        <div className="max-w-7xl mx-auto">
+                            <div className="relative z-10 pb-8 bg-transparent sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32 pt-20">
+                                <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
+                                    <div className="sm:text-center lg:text-left">
+                                        <h1 className="text-5xl tracking-tight font-extrabold text-black sm:text-6xl md:text-7xl">
+                                            <span className="block xl:inline">{siteConfig.heroTitle1}</span>{' '}
+                                            <span className="block text-gray-300 xl:inline">{siteConfig.heroTitle2}</span>
+                                        </h1>
+                                        <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                                            {siteConfig.heroDesc}
+                                        </p>
+                                        <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
+                                            <div className="rounded-md">
+                                                <button onClick={() => !isVisualEditor && setView('shop')} className={`w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-black hover:bg-gray-800 md:py-4 md:text-lg transition-all duration-200 ${isVisualEditor ? 'opacity-75 cursor-not-allowed' : ''}`}>
+                                                    Khám phá sản phẩm
+                                                </button>
+                                            </div>
+                                            <div className="mt-3 sm:mt-0 sm:ml-3">
+                                                <button onClick={() => !isVisualEditor && setView('tracking_login')} className={`w-full flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-black bg-white hover:bg-gray-50 md:py-4 md:text-lg transition-all duration-200 ${isVisualEditor ? 'opacity-75 cursor-not-allowed' : ''}`}>
+                                                    Theo dõi đơn hàng
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </main>
+                            </div>
+                        </div>
+                        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 mt-10 lg:mt-0 px-4 lg:px-0">
+                            <img className="h-56 w-full object-cover sm:h-72 md:h-96 lg:w-full lg:h-full rounded-2xl lg:rounded-none lg:rounded-l-3xl shadow-sm" src={siteConfig.heroImage} alt="3D Printing" />
+                        </div>
+                    </div>
+
+                    {/* Process Section */}
+                    <div className="bg-gray-50 py-16 mt-12 lg:mt-0">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="text-center">
+                                <h2 className="text-base text-gray-500 font-semibold tracking-wide uppercase">Quy trình</h2>
+                                <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-black sm:text-4xl">Đơn giản từ lúc chọn đến khi nhận</p>
+                            </div>
+                            <div className="mt-10">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+                                    {[
+                                        { icon: "ph-mouse-left", title: "1. Chọn sản phẩm", desc: "Khám phá và tùy chỉnh màu sắc, kích thước" },
+                                        { icon: "ph-check-circle", title: "2. Xác nhận", desc: "SAMUCHAN liên hệ xác nhận thiết kế & đơn hàng" },
+                                        { icon: "ph-printer-3d", title: "3. Sản xuất", desc: "In 3D và kiểm tra chất lượng (QC) kỹ lưỡng" },
+                                        { icon: "ph-package", title: "4. Giao hàng", desc: "Đóng gói an toàn và giao đến tận tay bạn" }
+                                    ].map((step, idx) => (
+                                        <div key={idx} className="flex flex-col items-center">
+                                            <div className="flex items-center justify-center h-16 w-16 rounded-full bg-white border border-gray-200 text-black mb-4 shadow-sm">
+                                                <i className={`ph ${step.icon} text-3xl`}></i>
+                                            </div>
+                                            <h3 className="text-lg font-medium text-black">{step.title}</h3>
+                                            <p className="mt-2 text-sm text-gray-500">{step.desc}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Featured Products */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                        <div className="flex justify-between items-end mb-8">
+                            <h2 className="text-2xl font-bold text-black tracking-tight flex items-center">
+                                Sản phẩm nổi bật
+                                {isVisualEditor && <span className="ml-3 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded font-normal">Chỉnh sửa SP ở tab Sản phẩm</span>}
+                            </h2>
+                            <button onClick={() => !isVisualEditor && setView('shop')} className={`text-sm font-medium text-gray-600 hover:text-black flex items-center ${isVisualEditor ? 'opacity-50 cursor-not-allowed' : ''}`}>Xem tất cả <i className="ph ph-arrow-right ml-1"></i></button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-10 gap-x-6">
+                            {products.slice(0, 4).map(product => (
+                                <ProductCard key={product.id} product={product} setView={setView} isVisualEditor={isVisualEditor} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ProductCard = ({ product, setView, isVisualEditor, onEdit, onDelete }) => {
+            // If in visual editor and has edit capabilities (Shop page), allow hover effects.
+            // If in visual editor but no edit capabilities (Home page), look disabled.
+            const wrapperClasses = `group cursor-pointer relative ${
+                isVisualEditor 
+                    ? (onEdit ? 'hover:ring-2 hover:ring-indigo-400 hover:shadow-lg rounded-lg transition-all p-1 -m-1' : 'opacity-60 grayscale-[30%] cursor-not-allowed') 
+                    : ''
+            }`;
+
+            return (
+                <div className={wrapperClasses} onClick={() => !isVisualEditor && setView({ name: 'product', id: product.id })}>
+                    
+                    {isVisualEditor && onEdit && (
+                        <div className="absolute top-3 right-3 flex flex-col space-y-2 z-20 fade-in hidden group-hover:flex">
+                            <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="bg-white p-2 rounded-full shadow-lg border border-gray-100 text-blue-600 hover:bg-blue-50 transition-colors" title="Sửa sản phẩm">
+                                <i className="ph ph-pencil-simple text-lg leading-none"></i>
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="bg-white p-2 rounded-full shadow-lg border border-gray-100 text-red-600 hover:bg-red-50 transition-colors" title="Xóa sản phẩm">
+                                <i className="ph ph-trash text-lg leading-none"></i>
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="w-full aspect-w-1 aspect-h-1 bg-gray-100 rounded-lg overflow-hidden border border-gray-100 relative">
+                        <img src={product.image} alt={product.name} className={`w-full h-full object-center object-cover transition-opacity ${product.stockQuantity === 0 ? 'opacity-50 group-hover:opacity-50' : 'group-hover:opacity-90'}`} />
+                        {product.stockQuantity === 0 && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="bg-black/70 text-white px-3 py-1 text-sm font-medium rounded-full backdrop-blur-sm shadow-sm">Hết hàng</span>
+                            </div>
+                        )}
+                        {product.badge && product.stockQuantity > 0 && (
+                            <span className="absolute top-2 left-2 px-2 py-1 bg-white text-xs font-bold text-black border border-gray-200 rounded shadow-sm z-10">
+                                {product.badge}
+                            </span>
+                        )}
+                    </div>
+                    <div className="mt-4 flex justify-between">
+                        <div>
+                            <h3 className="text-sm text-gray-700 font-medium group-hover:text-black transition-colors pr-2 line-clamp-2">{product.name}</h3>
+                            <p className="mt-1 text-xs text-gray-500">{product.colors.length} màu sắc &bull; {product.sizes.length} size</p>
+                        </div>
+                        <p className="text-sm font-bold text-black whitespace-nowrap">{formatPrice(product.price)}</p>
+                    </div>
+                </div>
+            );
+        };
+
+        const Shop = ({ setView, products, setProducts, isVisualEditor }) => {
+            const [filter, setFilter] = useState('All');
+            const categories = ['All', 'Custom', 'Quà tặng', 'Trang trí'];
+            
+            const [editingProduct, setEditingProduct] = useState(null);
+
+            const filteredProducts = filter === 'All' ? products : products.filter(p => p.category === filter);
+
+            const handleSaveProduct = (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedProduct = {
+                    id: editingProduct.id || Date.now(),
+                    name: formData.get('name'),
+                    price: parseInt(formData.get('basePrice')),
+                    basePrice: parseInt(formData.get('basePrice')),
+                    category: formData.get('category'),
+                    image: formData.get('image'),
+                    badge: formData.get('badge'),
+                    colors: formData.get('colors').split(',').map(c => c.trim()),
+                    sizes: formData.get('sizes').split(',').map(s => s.trim()),
+                    stockQuantity: parseInt(formData.get('stockQuantity'))
+                };
+
+                if (editingProduct.id) {
+                    setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+                } else {
+                    // Add to beginning of array for immediate visibility
+                    setProducts([updatedProduct, ...products]);
+                }
+                setEditingProduct(null);
+            };
+
+            const handleDeleteProduct = (id) => {
+                setProducts(products.filter(p => p.id !== id));
+            };
+
+            return (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 fade-in relative">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-100 pb-6">
+                        <h1 className="text-3xl font-bold text-black tracking-tight mb-4 md:mb-0">
+                            Tất cả sản phẩm
+                            {isVisualEditor && <span className="ml-3 text-sm font-normal text-indigo-600 bg-indigo-50 px-2 py-1 rounded">Chế độ Chỉnh sửa</span>}
+                        </h1>
+                        
+                        <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
+                            {categories.map(cat => (
+                                <button 
+                                    key={cat}
+                                    onClick={() => setFilter(cat)}
+                                    className={`px-4 py-2 text-sm rounded-md border whitespace-nowrap transition-colors ${filter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+                                >
+                                    {cat === 'All' ? 'Tất cả' : cat}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-10 gap-x-6 xl:gap-x-8">
+                        
+                        {/* Add Product Tile (Visible only in Visual Editor) */}
+                        {isVisualEditor && (
+                            <div 
+                                onClick={() => setEditingProduct({ category: filter !== 'All' ? filter : 'Custom', colors: [], sizes: [] })}
+                                className="w-full aspect-w-1 aspect-h-1 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer transition-all shadow-sm fade-in min-h-[250px]"
+                            >
+                                <i className="ph ph-plus-circle text-5xl mb-3"></i>
+                                <span className="text-sm font-medium">Thêm sản phẩm {filter !== 'All' ? `vào "${filter}"` : 'mới'}</span>
+                            </div>
+                        )}
+
+                        {filteredProducts.map(product => (
+                            <ProductCard 
+                                key={product.id} 
+                                product={product} 
+                                setView={setView} 
+                                isVisualEditor={isVisualEditor}
+                                onEdit={() => setEditingProduct(product)}
+                                onDelete={() => handleDeleteProduct(product.id)}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Product Edit/Add Modal */}
+                    {editingProduct && (
+                        <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4 fade-in overflow-y-auto">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl my-8 relative border border-gray-100">
+                                <button type="button" onClick={() => setEditingProduct(null)} className="absolute top-4 right-4 text-gray-400 hover:text-black">
+                                    <i className="ph ph-x text-2xl"></i>
+                                </button>
+                                <h2 className="text-xl font-bold mb-6 text-black">{editingProduct.id ? 'Sửa thông tin Sản phẩm' : 'Thêm Sản phẩm mới'}</h2>
+                                <form onSubmit={handleSaveProduct} className="space-y-5">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tên sản phẩm</label>
+                                            <input type="text" name="name" defaultValue={editingProduct.name} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Giá cơ bản (VNĐ)</label>
+                                            <input type="number" name="basePrice" defaultValue={editingProduct.basePrice} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Số lượng tồn kho</label>
+                                            <input type="number" name="stockQuantity" defaultValue={editingProduct.stockQuantity ?? 10} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Danh mục</label>
+                                            <select name="category" defaultValue={editingProduct.category || "Custom"} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
+                                                <option value="Custom">Custom</option>
+                                                <option value="Quà tặng">Quà tặng</option>
+                                                <option value="Trang trí">Trang trí</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Badge (VD: Mới, Bán chạy)</label>
+                                            <input type="text" name="badge" defaultValue={editingProduct.badge} placeholder="Để trống nếu không cần" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Link Ảnh (URL)</label>
+                                            <input type="text" name="image" defaultValue={editingProduct.image || "https://placehold.co/600x600/f3f4f6/1f2937?text=New+Product"} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Màu sắc (cách nhau dấu phẩy)</label>
+                                            <input type="text" name="colors" defaultValue={editingProduct.colors?.join(', ')} placeholder="VD: Trắng, Đen, Xám" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Kích thước (cách nhau dấu phẩy)</label>
+                                            <input type="text" name="sizes" defaultValue={editingProduct.sizes?.join(', ')} placeholder="VD: Nhỏ, Vừa, Lớn" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100 mt-6">
+                                        <button type="button" onClick={() => setEditingProduct(null)} className="px-5 py-2 text-sm font-medium rounded text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">Hủy bỏ</button>
+                                        <button type="submit" className="px-5 py-2 text-sm font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors">Xác nhận (Preview)</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ProductDetail = ({ productId, setView, addToCart, products }) => {
+            const product = products.find(p => p.id === productId) || products[0];
+            const [selectedColor, setSelectedColor] = useState(product.colors[0]);
+            const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
+            const [quantity, setQuantity] = useState(1);
+
+            // Mock logic: Increase price for larger sizes
+            const sizeIndex = product.sizes.indexOf(selectedSize);
+            const currentPrice = product.basePrice + (sizeIndex > 0 ? sizeIndex * 50000 : 0);
+
+            const handleAddToCart = () => {
+                addToCart({
+                    id: product.id,
+                    name: product.name,
+                    price: currentPrice,
+                    image: product.image,
+                    color: selectedColor,
+                    size: selectedSize,
+                    quantity: quantity
+                });
+                setView('cart');
+            };
+
+            return (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 fade-in">
+                    <div className="lg:grid lg:grid-cols-2 lg:gap-x-8 lg:items-start">
+                        {/* Image Gallery */}
+                        <div className="flex flex-col-reverse">
+                            <div className="mt-6 w-full max-w-2xl mx-auto sm:block lg:max-w-none">
+                                <div className="grid grid-cols-4 gap-4" aria-orientation="horizontal" role="tablist">
+                                    {[1, 2, 3, 4].map((thumb) => (
+                                        <button key={thumb} className="relative h-24 bg-white rounded-md flex items-center justify-center text-sm font-medium uppercase text-gray-900 cursor-pointer hover:bg-gray-50 focus:outline-none border border-gray-200">
+                                            <span className="absolute inset-0 rounded-md overflow-hidden">
+                                                <img src={product.image} alt="" className="w-full h-full object-center object-cover opacity-60" />
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="w-full aspect-w-1 aspect-h-1 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                                <img src={product.image} alt={product.name} className="w-full h-full object-center object-cover" />
+                            </div>
+                        </div>
+
+                        {/* Product Info */}
+                        <div className="mt-10 px-4 sm:px-0 sm:mt-16 lg:mt-0">
+                            <h1 className="text-3xl font-extrabold tracking-tight text-black">{product.name}</h1>
+                            <div className="mt-3 flex items-center justify-between">
+                                <p className="text-3xl text-black font-bold">{formatPrice(currentPrice)}</p>
+                                {product.stockQuantity === 0 && (
+                                    <span className="bg-red-100 text-red-700 px-3 py-1 rounded text-sm font-bold border border-red-200">Hết hàng</span>
+                                )}
+                            </div>
+                            <div className="mt-6">
+                                <div className="text-base text-gray-500 space-y-4">
+                                    <p>Sản phẩm được in 3D với độ chi tiết cao, hoàn thiện thủ công tỉ mỉ. Phù hợp làm quà tặng độc đáo hoặc trang trí không gian làm việc.</p>
+                                </div>
+                            </div>
+
+                            <form className="mt-6" onSubmit={(e) => e.preventDefault()}>
+                                {/* Colors */}
+                                <div>
+                                    <h3 className="text-sm text-gray-900 font-medium">Màu sắc</h3>
+                                    <div className="mt-2 flex flex-wrap gap-3">
+                                        {product.colors.map(color => (
+                                            <button
+                                                key={color}
+                                                onClick={() => setSelectedColor(color)}
+                                                className={`px-4 py-2 border rounded-md text-sm font-medium focus:outline-none transition-colors ${selectedColor === color ? 'border-black text-black bg-gray-50' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                                            >
+                                                {color}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Sizes */}
+                                <div className="mt-6">
+                                    <div className="flex justify-between">
+                                        <h3 className="text-sm text-gray-900 font-medium">Kích thước</h3>
+                                    </div>
+                                    <div className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                                        {product.sizes.map(size => (
+                                            <button
+                                                key={size}
+                                                onClick={() => setSelectedSize(size)}
+                                                className={`px-3 py-2 border rounded-md text-sm font-medium flex items-center justify-center focus:outline-none transition-colors ${selectedSize === size ? 'border-black text-black bg-gray-50' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                                            >
+                                                {size}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Quantity */}
+                                <div className="mt-6">
+                                    <h3 className="text-sm text-gray-900 font-medium">Số lượng</h3>
+                                    <div className="mt-2 flex items-center border border-gray-200 rounded-md w-32">
+                                        <button type="button" className="px-3 py-2 text-gray-500 hover:text-black" onClick={() => setQuantity(Math.max(1, quantity - 1))}><i className="ph ph-minus"></i></button>
+                                        <input type="text" className="w-full text-center border-0 focus:ring-0 text-sm font-medium p-0" value={quantity} readOnly />
+                                        <button type="button" className="px-3 py-2 text-gray-500 hover:text-black" onClick={() => setQuantity(quantity + 1)}><i className="ph ph-plus"></i></button>
+                                    </div>
+                                    {product.stockQuantity > 0 && <p className="text-xs text-gray-400 mt-2">Kho còn: {product.stockQuantity} sản phẩm</p>}
+                                </div>
+
+                                {product.category === 'Custom' && (
+                                    <div className="mt-6 bg-gray-50 border border-gray-100 rounded-md p-4 flex items-start">
+                                        <i className="ph ph-info text-gray-400 text-xl mr-3 mt-0.5"></i>
+                                        <p className="text-sm text-gray-600">
+                                            Sản phẩm này có thể tùy chỉnh. <br/>Shop sẽ liên hệ với bạn qua Zalo/SĐT sau khi đặt hàng để chốt thiết kế chi tiết.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="mt-10 flex space-x-4">
+                                    <button 
+                                        onClick={handleAddToCart} 
+                                        disabled={product.stockQuantity === 0}
+                                        className={`flex-1 border border-transparent rounded-md py-3 px-8 flex items-center justify-center text-base font-medium text-white focus:outline-none transition-colors ${product.stockQuantity === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800'}`}
+                                    >
+                                        {product.stockQuantity === 0 ? 'Tạm hết hàng' : 'Thêm vào giỏ hàng'}
+                                    </button>
+                                </div>
+                            </form>
+
+                            {/* Details Accordion mock */}
+                            <div className="mt-8 border-t border-gray-200 pt-8">
+                                <div className="prose prose-sm text-gray-500">
+                                    <ul className="list-disc pl-4 space-y-2">
+                                        <li>Chất liệu: Nhựa sinh học PLA thân thiện môi trường</li>
+                                        <li>Thời gian sản xuất: 2-3 ngày làm việc</li>
+                                        <li>Bảo quản: Tránh ánh nắng gắt và nhiệt độ trên 50°C</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Cart = ({ cart, setCart, setView }) => {
+            const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            const updateQuantity = (index, delta) => {
+                const newCart = [...cart];
+                const newQty = newCart[index].quantity + delta;
+                if (newQty > 0) {
+                    newCart[index].quantity = newQty;
+                    setCart(newCart);
+                }
+            };
+
+            const removeItem = (index) => {
+                const newCart = cart.filter((_, i) => i !== index);
+                setCart(newCart);
+            };
+
+            if (cart.length === 0) {
+                return (
+                    <div className="max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8 text-center fade-in">
+                        <i className="ph ph-shopping-cart text-6xl text-gray-300 mb-4 inline-block"></i>
+                        <h2 className="text-2xl font-medium text-black">Giỏ hàng trống</h2>
+                        <p className="mt-2 text-gray-500 mb-8">Bạn chưa chọn sản phẩm nào.</p>
+                        <button onClick={() => setView('shop')} className="bg-black text-white px-8 py-3 rounded-md hover:bg-gray-800 transition-colors">
+                            Tiếp tục mua sắm
+                        </button>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 fade-in">
+                    <h1 className="text-3xl font-extrabold tracking-tight text-black mb-10">Giỏ hàng của bạn</h1>
+                    <div className="lg:grid lg:grid-cols-12 lg:gap-x-12 lg:items-start">
+                        <div className="lg:col-span-7">
+                            <ul role="list" className="border-t border-b border-gray-200 divide-y divide-gray-200">
+                                {cart.map((item, index) => (
+                                    <li key={index} className="flex py-6 sm:py-10">
+                                        <div className="flex-shrink-0">
+                                            <img src={item.image} alt={item.name} className="w-24 h-24 rounded-md object-center object-cover border border-gray-100 sm:w-32 sm:h-32" />
+                                        </div>
+                                        <div className="ml-4 flex-1 flex flex-col justify-between sm:ml-6">
+                                            <div className="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
+                                                <div>
+                                                    <div className="flex justify-between">
+                                                        <h3 className="text-sm font-medium text-black">{item.name}</h3>
+                                                    </div>
+                                                    <div className="mt-1 flex text-sm text-gray-500">
+                                                        <p>{item.color}</p>
+                                                        <p className="ml-4 border-l border-gray-200 pl-4">{item.size}</p>
+                                                    </div>
+                                                    <p className="mt-1 text-sm font-medium text-gray-900">{formatPrice(item.price)}</p>
+                                                </div>
+                                                <div className="mt-4 sm:mt-0 sm:pr-9">
+                                                    <div className="flex items-center border border-gray-200 rounded-md w-max">
+                                                        <button type="button" className="px-2 py-1 text-gray-500 hover:text-black" onClick={() => updateQuantity(index, -1)}><i className="ph ph-minus"></i></button>
+                                                        <span className="px-2 text-sm font-medium w-8 text-center">{item.quantity}</span>
+                                                        <button type="button" className="px-2 py-1 text-gray-500 hover:text-black" onClick={() => updateQuantity(index, 1)}><i className="ph ph-plus"></i></button>
+                                                    </div>
+                                                    <div className="absolute top-0 right-0">
+                                                        <button type="button" onClick={() => removeItem(index)} className="-m-2 p-2 inline-flex text-gray-400 hover:text-gray-500">
+                                                            <span className="sr-only">Remove</span>
+                                                            <i className="ph ph-x text-xl"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="mt-16 bg-gray-50 rounded-lg px-4 py-6 sm:p-6 lg:p-8 lg:mt-0 lg:col-span-5">
+                            <h2 className="text-lg font-medium text-black">Tóm tắt đơn hàng</h2>
+                            <dl className="mt-6 space-y-4 text-sm text-gray-600">
+                                <div className="flex items-center justify-between">
+                                    <dt>Tạm tính</dt>
+                                    <dd className="font-medium text-gray-900">{formatPrice(totalAmount)}</dd>
+                                </div>
+                                <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                                    <dt>Phí vận chuyển</dt>
+                                    <dd className="font-medium text-gray-900">Tính khi thanh toán</dd>
+                                </div>
+                                <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                                    <dt className="text-base font-medium text-black">Tổng cộng</dt>
+                                    <dd className="text-base font-medium text-black">{formatPrice(totalAmount)}</dd>
+                                </div>
+                            </dl>
+                            <div className="mt-6">
+                                <button onClick={() => setView('checkout')} className="w-full bg-black border border-transparent rounded-md shadow-sm py-3 px-4 text-base font-medium text-white hover:bg-gray-800 focus:outline-none transition-colors">
+                                    Tiến hành thanh toán
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Checkout = ({ cart, setView, setCart }) => {
+            const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            const handleCheckout = (e) => {
+                e.preventDefault();
+                setCart([]);
+                setView('success');
+            };
+
+            return (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 fade-in">
+                    <div className="lg:grid lg:grid-cols-12 lg:gap-x-12">
+                        <div className="lg:col-span-7">
+                            <h2 className="text-2xl font-bold text-black mb-6">Thông tin giao hàng</h2>
+                            <form onSubmit={handleCheckout} className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Họ và tên</label>
+                                    <input type="text" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Số điện thoại</label>
+                                    <input type="tel" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Địa chỉ nhận hàng chi tiết</label>
+                                    <textarea rows="3" required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm"></textarea>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Ghi chú cho shop (không bắt buộc)</label>
+                                    <textarea rows="2" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm" placeholder="VD: Đơn quà tặng, khắc tên 'An'..."></textarea>
+                                </div>
+                                
+                                <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mt-6">
+                                    <h4 className="text-sm font-medium text-black mb-2 flex items-center"><i className="ph ph-info mr-2"></i> Lưu ý quan trọng</h4>
+                                    <p className="text-sm text-gray-600">Sau khi đặt hàng, SAMUCHAN sẽ liên hệ với bạn qua Zalo hoặc số điện thoại để xác nhận thông tin sản phẩm trước khi đưa vào sản xuất (đặc biệt với các sản phẩm Custom).</p>
+                                </div>
+
+                                <button type="submit" className="w-full bg-black border border-transparent rounded-md py-3 px-4 text-base font-medium text-white hover:bg-gray-800 transition-colors mt-8">
+                                    Xác nhận đặt hàng
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <div className="mt-10 lg:mt-0 lg:col-span-5 bg-gray-50 p-6 rounded-lg border border-gray-100 h-fit">
+                            <h2 className="text-lg font-medium text-black mb-4">Đơn hàng của bạn</h2>
+                            <ul role="list" className="divide-y divide-gray-200 text-sm">
+                                {cart.map((item, index) => (
+                                    <li key={index} className="py-4 flex justify-between">
+                                        <div className="flex">
+                                            <div className="w-12 h-12 bg-white rounded border border-gray-200 overflow-hidden mr-4">
+                                                <img src={item.image} className="w-full h-full object-cover"/>
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-gray-900">{item.name}</p>
+                                                <p className="text-gray-500">{item.color} | {item.size}</p>
+                                                <p className="text-gray-500">SL: {item.quantity}</p>
+                                            </div>
+                                        </div>
+                                        <p className="font-medium text-gray-900">{formatPrice(item.price * item.quantity)}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <p className="text-gray-600">Tạm tính</p>
+                                    <p className="font-medium text-gray-900">{formatPrice(totalAmount)}</p>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <p className="text-gray-600">Phí vận chuyển (Dự kiến)</p>
+                                    <p className="font-medium text-gray-900">30.000đ</p>
+                                </div>
+                                <div className="flex justify-between text-base font-bold text-black border-t border-gray-200 pt-4 mt-4">
+                                    <p>Tổng thanh toán</p>
+                                    <p>{formatPrice(totalAmount + 30000)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const OrderSuccess = ({ setView }) => {
+            const orderId = "SAMU-" + Math.floor(1000 + Math.random() * 9000);
+            
+            return (
+                <div className="max-w-2xl mx-auto px-4 py-24 sm:px-6 lg:px-8 text-center fade-in">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-black text-white mb-6">
+                        <i className="ph ph-check text-3xl"></i>
+                    </div>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-black sm:text-4xl">Đặt hàng thành công!</h1>
+                    <p className="mt-4 text-lg text-gray-500">
+                        Cảm ơn bạn đã tin tưởng SAMUCHAN. Mã đơn hàng của bạn là:
+                    </p>
+                    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md inline-block">
+                        <span className="text-2xl font-mono font-bold text-black">{orderId}</span>
+                    </div>
+                    <p className="mt-4 text-sm text-gray-500">
+                        Shop sẽ sớm liên hệ với bạn qua số điện thoại để xác nhận đơn hàng trước khi tiến hành sản xuất.
+                    </p>
+                    <div className="mt-10 flex justify-center space-x-4">
+                        <button onClick={() => setView('tracking_demo')} className="bg-white border border-black text-black px-6 py-3 rounded-md hover:bg-gray-50 transition-colors font-medium text-sm">
+                            Theo dõi đơn hàng
+                        </button>
+                        <button onClick={() => setView('shop')} className="bg-black border border-transparent text-white px-6 py-3 rounded-md hover:bg-gray-800 transition-colors font-medium text-sm">
+                            Tiếp tục mua sắm
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const TrackingLogin = ({ setView }) => {
+            return (
+                <div className="max-w-md mx-auto px-4 py-24 fade-in">
+                    <div className="text-center mb-8">
+                        <h1 className="text-2xl font-bold text-black">Kiểm tra đơn hàng</h1>
+                        <p className="text-sm text-gray-500 mt-2">Nhập mã đơn hàng và số điện thoại để xem trạng thái.</p>
+                    </div>
+                    <form onSubmit={(e) => { e.preventDefault(); setView('tracking_demo'); }} className="space-y-4">
+                        <div>
+                            <input type="text" placeholder="Mã đơn hàng (VD: SAMU-1234)" required className="block w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-black focus:border-black" />
+                        </div>
+                        <div>
+                            <input type="tel" placeholder="Số điện thoại đặt hàng" required className="block w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-black focus:border-black" />
+                        </div>
+                        <button type="submit" className="w-full bg-black text-white py-3 rounded-md hover:bg-gray-800 transition-colors font-medium">
+                            Tra cứu
+                        </button>
+                    </form>
+                </div>
+            );
+        };
+
+        const OrderTracking = () => {
+            const steps = [
+                { name: 'Đã nhận đơn', status: 'complete', date: '10:00 - 04/10/2026' },
+                { name: 'Đã xác nhận', status: 'complete', date: '10:30 - 04/10/2026', note: 'Đã chốt file thiết kế' },
+                { name: 'Đang sản xuất', status: 'current', date: 'Bắt đầu in 3D' },
+                { name: 'Kiểm tra sản phẩm', status: 'upcoming' },
+                { name: 'Đóng gói', status: 'upcoming' },
+                { name: 'Đang giao hàng', status: 'upcoming' },
+                { name: 'Hoàn thành', status: 'upcoming' }
+            ];
+
+            return (
+                <div className="max-w-3xl mx-auto px-4 py-12 fade-in">
+                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 sm:p-8">
+                        <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
+                            <div>
+                                <h2 className="text-xl font-bold text-black">Đơn hàng #SAMU-1025</h2>
+                                <p className="text-sm text-gray-500 mt-1">Đặt ngày: 04/10/2026</p>
+                            </div>
+                            <div className="px-3 py-1 bg-black text-white text-xs font-bold rounded">
+                                ĐANG SẢN XUẤT
+                            </div>
+                        </div>
+
+                        <div className="py-4">
+                            <ul role="list" className="-mb-8">
+                                {steps.map((step, stepIdx) => (
+                                    <li key={step.name}>
+                                        <div className="relative pb-8">
+                                            {stepIdx !== steps.length - 1 ? (
+                                                <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+                                            ) : null}
+                                            <div className="relative flex space-x-3">
+                                                <div>
+                                                    <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${
+                                                        step.status === 'complete' ? 'bg-black' : 
+                                                        step.status === 'current' ? 'bg-white border-2 border-black' : 'bg-gray-100'
+                                                    }`}>
+                                                        {step.status === 'complete' ? (
+                                                            <i className="ph ph-check text-white"></i>
+                                                        ) : step.status === 'current' ? (
+                                                            <span className="h-2.5 w-2.5 bg-black rounded-full" aria-hidden="true"></span>
+                                                        ) : null}
+                                                    </span>
+                                                </div>
+                                                <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                                    <div>
+                                                        <p className={`text-sm font-medium ${step.status === 'upcoming' ? 'text-gray-400' : 'text-gray-900'}`}>{step.name}</p>
+                                                        {step.note && <p className="mt-1 text-xs text-gray-500 italic">{step.note}</p>}
+                                                    </div>
+                                                    {step.date && (
+                                                        <div className="text-right text-xs text-gray-500 whitespace-nowrap">
+                                                            {step.date}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <div className="mt-10 bg-gray-50 rounded p-4 border border-gray-100">
+                            <h3 className="text-sm font-medium text-black mb-3">Sản phẩm đã đặt</h3>
+                            <div className="flex justify-between items-center text-sm mb-2">
+                                <div className="flex items-center text-gray-700">
+                                    <span className="font-medium mr-2">1x</span> Tượng Chibi Custom (Trắng, Vừa)
+                                </div>
+                                <span className="text-gray-900">400.000đ</span>
+                            </div>
+                             <div className="flex justify-between items-center text-sm font-bold border-t border-gray-200 pt-2 mt-2">
+                                <span>Tổng cộng</span>
+                                <span>430.000đ</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminPanel = ({ setView, startVisualEditor }) => {
+            const [adminTab, setAdminTab] = useState('dashboard');
+            
+            const mockOrders = [
+                { id: 'SAMU-1025', customer: 'Nguyễn Văn A', phone: '090xxxx123', total: 430000, status: 'Đang sản xuất', date: '04/10' },
+                { id: 'SAMU-1024', customer: 'Trần Thị B', phone: '098xxxx456', total: 250000, status: 'Chờ xác nhận', date: '04/10' },
+                { id: 'SAMU-1023', customer: 'Lê Văn C', phone: '091xxxx789', total: 850000, status: 'Đạt QC - Chờ gói', date: '03/10' },
+                { id: 'SAMU-1022', customer: 'Phạm D', phone: '093xxxx000', total: 150000, status: 'Hoàn thành', date: '01/10' },
+            ];
+            
+            return (
+                <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans fade-in absolute inset-0 z-[100]">
+                    {/* Admin Sidebar */}
+                    <div className="w-full md:w-64 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col shadow-sm z-10">
+                        <div className="h-16 flex items-center px-6 border-b border-gray-100 justify-between">
+                            <span className="font-bold text-xl">Admin<span className="text-gray-400">Panel</span></span>
+                            <button onClick={() => setView('home')} className="text-xs border border-gray-200 px-2 py-1 rounded hover:bg-gray-50">Thoát</button>
+                        </div>
+                        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                            {[
+                                { id: 'dashboard', name: 'Dashboard', icon: 'ph-squares-four' },
+                                { id: 'orders', name: 'Đơn hàng', icon: 'ph-receipt' },
+                                { id: 'production', name: 'Sản xuất (QC)', icon: 'ph-printer-3d' }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setAdminTab(tab.id)}
+                                    className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${adminTab === tab.id ? 'bg-black text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                                >
+                                    <i className={`ph ${tab.icon} mr-3 text-lg`}></i>
+                                    {tab.name}
+                                </button>
+                            ))}
+                            
+                            {/* Visual Editor Trigger */}
+                            <div className="pt-6 mt-6 border-t border-gray-100">
+                                <p className="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Quản lý Website</p>
+                                <button
+                                    onClick={startVisualEditor}
+                                    className="w-full flex items-center px-3 py-3 text-sm font-bold rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200 shadow-sm group"
+                                >
+                                    <i className="ph ph-magic-wand mr-3 text-xl group-hover:animate-pulse"></i>
+                                    Visual Editor 
+                                </button>
+                                <p className="px-3 text-[10px] text-gray-400 mt-2 leading-tight">Chỉnh sửa giao diện và sản phẩm trực quan như đang lướt web.</p>
+                            </div>
+                        </nav>
+                    </div>
+
+                    {/* Admin Content */}
+                    <div className="flex-1 overflow-auto p-6 md:p-8">
+                        {adminTab === 'dashboard' && (
+                            <div>
+                                <h1 className="text-2xl font-bold text-black mb-6">Tổng quan</h1>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                                    {[
+                                        { label: 'Đơn chờ xử lý', value: '5', color: 'text-orange-500' },
+                                        { label: 'Đang in 3D', value: '12', color: 'text-blue-500' },
+                                        { label: 'Doanh thu ngày', value: '2.5M', color: 'text-black' },
+                                        { label: 'Lượt truy cập', value: '142', color: 'text-gray-500' },
+                                    ].map((stat, i) => (
+                                        <div key={i} className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                            <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
+                                            <p className={`text-3xl font-bold mt-2 ${stat.color}`}>{stat.value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                                    <h2 className="text-lg font-medium mb-4">Đơn hàng mới nhất</h2>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Mã đơn</th>
+                                                    <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Khách hàng</th>
+                                                    <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                                    <th className="px-6 py-3 text-right font-medium text-gray-500 uppercase tracking-wider">Tổng tiền</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {mockOrders.map((order, i) => (
+                                                    <tr key={i}>
+                                                        <td className="px-6 py-4 whitespace-nowrap font-medium text-black">{order.id}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-gray-500">{order.customer}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                                                                {order.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-right font-medium">{formatPrice(order.total)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {adminTab === 'production' && (
+                            <div>
+                                <h1 className="text-2xl font-bold text-black mb-6">Quản lý Sản xuất (QC)</h1>
+                                <p className="text-gray-500 mb-6 text-sm">Quản lý tiến độ in 3D để tránh nhầm màu/size.</p>
+                                
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div className="bg-gray-100 rounded-lg p-4">
+                                        <h3 className="font-bold text-gray-700 uppercase text-xs tracking-wider mb-4 flex justify-between">
+                                            Chờ in <span>2</span>
+                                        </h3>
+                                        <div className="space-y-3">
+                                            <div className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                                    <span>SAMU-1026</span>
+                                                    <span>Hôm nay</span>
+                                                </div>
+                                                <p className="font-medium text-sm">Đèn Mặt Trăng</p>
+                                                <p className="text-xs text-gray-500 mt-1">Trắng sáng • Kính 15cm</p>
+                                                <button className="mt-3 w-full bg-black text-white text-xs py-1.5 rounded">Bắt đầu in</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                                        <h3 className="font-bold text-blue-800 uppercase text-xs tracking-wider mb-4 flex justify-between">
+                                            Đang in máy 1 & 2 <span>1</span>
+                                        </h3>
+                                        <div className="space-y-3">
+                                            <div className="bg-white p-3 rounded border border-blue-200 shadow-sm border-l-4 border-l-blue-500">
+                                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                                    <span>SAMU-1025</span>
+                                                    <span className="text-blue-500 font-medium">Đang in 45%</span>
+                                                </div>
+                                                <p className="font-medium text-sm">Tượng Chibi Custom</p>
+                                                <p className="text-xs text-gray-500 mt-1">Trắng • Vừa (10cm)</p>
+                                                <div className="mt-3 flex space-x-2">
+                                                    <button className="flex-1 bg-green-50 text-green-700 border border-green-200 text-xs py-1.5 rounded">Hoàn thành in</button>
+                                                    <button className="flex-1 bg-red-50 text-red-700 border border-red-200 text-xs py-1.5 rounded">Lỗi in</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-green-50 border border-green-100 rounded-lg p-4">
+                                        <h3 className="font-bold text-green-800 uppercase text-xs tracking-wider mb-4 flex justify-between">
+                                            Chờ QC / Đóng gói <span>1</span>
+                                        </h3>
+                                         <div className="space-y-3">
+                                            <div className="bg-white p-3 rounded border border-green-200 shadow-sm">
+                                                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                                    <span>SAMU-1023</span>
+                                                    <span>Hôm qua</span>
+                                                </div>
+                                                <p className="font-medium text-sm">Bảng tên để bàn</p>
+                                                <p className="text-xs text-gray-500 mt-1">Đen/Trắng • Lớn</p>
+                                                <button className="mt-3 w-full bg-black text-white text-xs py-1.5 rounded">Xác nhận đóng gói</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {adminTab === 'orders' && (
+                            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                                <i className="ph ph-wrench text-4xl mb-2"></i>
+                                <p>Tính năng đang phát triển</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [view, setView] = useState('home');
+            const [cart, setCart] = useState([]);
+            
+            const [products, setProducts] = useState(MOCK_PRODUCTS);
+            const [siteConfig, setSiteConfig] = useState({
+                heroTitle1: "Gift & Custom",
+                heroTitle2: "3D Studio",
+                heroDesc: "Tạo ra những món quà độc bản và đồ trang trí tinh tế bằng công nghệ in 3D hiện đại. Đơn giản, nhanh chóng và mang đậm dấu ấn cá nhân.",
+                heroImage: "https://placehold.co/1200x800/f3f4f6/1f2937?text=Minimalist+3D+Printing"
+            });
+
+            // Visual Editor States
+            const [isVisualEditor, setIsVisualEditor] = useState(false);
+            const [backupData, setBackupData] = useState(null);
+            const [toastMessage, setToastMessage] = useState(null);
+
+            const startVisualEditor = () => {
+                // Save original state before editing
+                setBackupData({ products: JSON.parse(JSON.stringify(products)), siteConfig: JSON.parse(JSON.stringify(siteConfig)) });
+                setIsVisualEditor(true);
+                setView('home'); // Automatically jump to Home to start visual editing
+            };
+
+            const saveVisualEditor = () => {
+                setBackupData(null); // Commit changes, discard backup
+                setIsVisualEditor(false);
+                setToastMessage("Đã lưu thành công giao diện mới!");
+                setTimeout(() => setToastMessage(null), 3500);
+            };
+
+            const cancelVisualEditor = () => {
+                if (backupData) {
+                    setProducts(backupData.products);
+                    setSiteConfig(backupData.siteConfig);
+                }
+                setBackupData(null);
+                setIsVisualEditor(false);
+            };
+
+            const addToCart = (product) => {
+                const existingIndex = cart.findIndex(item => item.id === product.id && item.color === product.color && item.size === product.size);
+                if (existingIndex >= 0) {
+                    const newCart = [...cart];
+                    newCart[existingIndex].quantity += product.quantity;
+                    setCart(newCart);
+                } else {
+                    setCart([...cart, product]);
+                }
+            };
+
+            const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+            useEffect(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, [view]);
+
+            const renderView = () => {
+                if (view === 'home') return <Home setView={setView} products={products} siteConfig={siteConfig} setSiteConfig={setSiteConfig} isVisualEditor={isVisualEditor} />;
+                if (view === 'shop') return <Shop setView={setView} products={products} setProducts={setProducts} isVisualEditor={isVisualEditor} />;
+                if (typeof view === 'object' && view.name === 'product') return <ProductDetail productId={view.id} setView={setView} addToCart={addToCart} products={products} />;
+                if (view === 'cart') return <Cart cart={cart} setCart={setCart} setView={setView} />;
+                if (view === 'checkout') return <Checkout cart={cart} setCart={setCart} setView={setView} />;
+                if (view === 'success') return <OrderSuccess setView={setView} />;
+                if (view === 'tracking_login') return <TrackingLogin setView={setView} />;
+                if (view === 'tracking_demo') return <OrderTracking />;
+                if (view === 'admin') return <AdminPanel setView={setView} startVisualEditor={startVisualEditor} />;
+                return <Home setView={setView} products={products} siteConfig={siteConfig} setSiteConfig={setSiteConfig} isVisualEditor={isVisualEditor} />;
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {/* Global Admin Bar */}
+                    {isVisualEditor && (
+                        <div className="bg-indigo-600 text-white px-4 py-3 flex flex-col sm:flex-row justify-between items-center sticky top-0 z-[100] shadow-md">
+                            <div className="flex items-center space-x-3 mb-3 sm:mb-0">
+                                <span className="relative flex h-3 w-3">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                                </span>
+                                <span className="font-bold text-sm tracking-wide">Chế độ Visual Editor (Preview)</span>
+                                <span className="hidden sm:inline-block text-xs font-normal text-indigo-200">Bạn có thể sửa trực tiếp trên giao diện</span>
+                            </div>
+                            <div className="flex space-x-3 w-full sm:w-auto">
+                                <button onClick={cancelVisualEditor} className="flex-1 sm:flex-none px-4 py-2 bg-indigo-800 rounded-md text-sm font-medium hover:bg-indigo-900 transition-colors shadow-sm text-center">Hủy thay đổi</button>
+                                <button onClick={saveVisualEditor} className="flex-1 sm:flex-none px-4 py-2 bg-white text-indigo-700 font-bold rounded-md text-sm hover:bg-gray-100 shadow-sm transition-colors text-center">Lưu cho toàn trang</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Toast Notification */}
+                    {toastMessage && (
+                        <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-6 py-4 rounded-lg shadow-2xl z-[150] fade-in flex items-center border border-gray-700">
+                            <i className="ph ph-check-circle text-green-400 text-2xl mr-3"></i>
+                            <span className="font-medium text-sm tracking-wide">{toastMessage}</span>
+                        </div>
+                    )}
+
+                    {view !== 'admin' && <Header setView={setView} cartCount={cartCount} isVisualEditor={isVisualEditor} />}
+                    <main className="flex-grow">
+                        {renderView()}
+                    </main>
+                    {view !== 'admin' && <Footer />}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
