@@ -24,6 +24,7 @@ interface VariantPriceRow {
   stock_quantity: number
   product_name: string
   base_price_vnd: number
+  unit_cost_vnd: number
 }
 
 interface OrderRow {
@@ -139,7 +140,7 @@ export async function createOrder(request: Request, env: Env): Promise<Response>
 
   const placeholders = input.items.map(() => '?').join(', ')
   const rows = await env.DB.prepare(
-    'SELECT v.id AS variant_id, v.product_id, v.sku, c.name AS color, s.name AS size, v.price_vnd, v.stock_quantity, p.name AS product_name, p.base_price_vnd FROM product_variants v INNER JOIN products p ON p.id = v.product_id INNER JOIN colors c ON c.id = v.color_id INNER JOIN sizes s ON s.id = v.size_id WHERE v.id IN (' + placeholders + ') AND v.status = ? AND p.status = ?',
+    'SELECT v.id AS variant_id, v.product_id, v.sku, c.display_name AS color, s.name AS size, v.price_vnd, v.stock_quantity, p.name AS product_name, p.base_price_vnd, (SELECT COALESCE(SUM(ci.cost_vnd), 0) FROM product_cost_items ci WHERE ci.product_id = p.id) AS unit_cost_vnd FROM product_variants v INNER JOIN products p ON p.id = v.product_id INNER JOIN colors c ON c.id = v.color_id INNER JOIN sizes s ON s.id = v.size_id WHERE v.id IN (' + placeholders + ') AND v.status = ? AND p.status = ?',
   ).bind(...input.items.map(item => item.variantId), 'active', 'active').all<VariantPriceRow>()
 
   const byId = new Map(rows.results.map(row => [row.variant_id, row]))
@@ -152,7 +153,7 @@ export async function createOrder(request: Request, env: Env): Promise<Response>
     subtotalVnd += (variant.price_vnd ?? variant.base_price_vnd) * item.quantity
   }
 
-  const shippingFeeVnd = input.shippingAddress ? 30000 : 0
+  const shippingFeeVnd = 0
   const totalVnd = subtotalVnd + shippingFeeVnd
   const now = new Date().toISOString()
   const id = crypto.randomUUID()
@@ -180,8 +181,8 @@ export async function createOrder(request: Request, env: Env): Promise<Response>
       'UPDATE product_variants SET stock_quantity = stock_quantity - ?, updated_at = ? WHERE id = ? AND status = ?',
     ).bind(item.quantity, now, variant.variant_id, 'active'))
     statements.push(env.DB.prepare(
-      'INSERT INTO order_items (id, order_id, product_id, variant_id, product_name_snapshot, sku_snapshot, color_snapshot, size_snapshot, unit_price_vnd, quantity, option_snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    ).bind(crypto.randomUUID(), id, variant.product_id, variant.variant_id, variant.product_name, variant.sku, variant.color, variant.size, unitPriceVnd, item.quantity, item.option ? JSON.stringify(item.option) : null))
+      'INSERT INTO order_items (id, order_id, product_id, variant_id, product_name_snapshot, sku_snapshot, color_snapshot, size_snapshot, unit_price_vnd, unit_cost_vnd, quantity, option_snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    ).bind(crypto.randomUUID(), id, variant.product_id, variant.variant_id, variant.product_name, variant.sku, variant.color, variant.size, unitPriceVnd, variant.unit_cost_vnd, item.quantity, item.option ? JSON.stringify(item.option) : null))
   }
 
   statements.push(env.DB.prepare(

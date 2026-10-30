@@ -32,7 +32,7 @@ export default function VisualEditorWorkspace({ initialProducts, initialConfig, 
       const payload = await result.json()
       const liveProducts: Product[] = payload.data.map((item: { id: string; name: string; description: string; category: string | null; basePriceVnd: number; imageUrl: string | null; demoVideoUrl: string | null; variants: Array<{ id: string; color: string; size: string; priceVnd: number | null; stockQuantity: number }> }) => {
         const variants = item.variants.map(variant => ({ id: variant.id, color: variant.color, size: variant.size, price: variant.priceVnd ?? item.basePriceVnd, stockQuantity: variant.stockQuantity }))
-        return { id: item.id, name: item.name, description: item.description, category: item.category ?? 'Quà tặng', price: item.basePriceVnd, image: item.imageUrl ?? '/brand/logo_samuchan.jpg', demoVideoUrl: item.demoVideoUrl ?? undefined, colors: [...new Set(variants.map(variant => variant.color))], sizes: [...new Set(variants.map(variant => variant.size))], stockQuantity: variants.reduce((sum, variant) => sum + variant.stockQuantity, 0), variants }
+        return { id: item.id, name: item.name, description: item.description, category: item.category ?? '', price: item.basePriceVnd, image: item.imageUrl ?? '/brand/logo_samuchan.jpg', demoVideoUrl: item.demoVideoUrl ?? undefined, colors: [...new Set(variants.map(variant => variant.color))], sizes: [...new Set(variants.map(variant => variant.size))], stockQuantity: variants.reduce((sum, variant) => sum + variant.stockQuantity, 0), variants }
       })
       setDraftProducts(liveProducts); setOriginalProducts(structuredClone(liveProducts))
       setAuthorized(true)

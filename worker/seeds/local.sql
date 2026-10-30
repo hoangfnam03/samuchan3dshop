@@ -13,12 +13,12 @@ INSERT OR IGNORE INTO order_status_transitions (from_status, to_status) VALUES
   ('preparing', 'packing'), ('preparing', 'cancelled'),
   ('packing', 'shipping'), ('shipping', 'completed');
 
-INSERT OR IGNORE INTO colors (id, code, name, hex, sort_order, created_at, updated_at) VALUES
-  ('color_white', 'white', 'Trắng', '#FFFFFF', 10, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),
-  ('color_black', 'black', 'Đen', '#111111', 20, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),
-  ('color_warm_white', 'warm-white', 'Trắng ấm', '#FFF4D6', 30, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),
-  ('color_black_white', 'black-white', 'Đen/Trắng', '#555555', 40, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),
-  ('color_matte_black', 'matte-black', 'Đen nhám', '#292929', 50, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z');
+INSERT OR IGNORE INTO colors (id, code, name, display_name, hex, sort_order, created_at, updated_at) VALUES
+  ('color_white', 'white', '__color_color_white', 'Trắng', '#FFFFFF', 10, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),
+  ('color_black', 'black', '__color_color_black', 'Đen', '#111111', 20, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),
+  ('color_warm_white', 'warm-white', '__color_color_warm_white', 'Trắng ấm', '#FFF4D6', 30, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),
+  ('color_black_white', 'black-white', '__color_color_black_white', 'Đen/Trắng', '#555555', 40, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),
+  ('color_matte_black', 'matte-black', '__color_color_matte_black', 'Đen nhám', '#292929', 50, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z');
 
 INSERT OR IGNORE INTO sizes (id, code, name, sort_order, created_at, updated_at) VALUES
   ('size_small_5', 'small-5cm', 'Nhỏ (5cm)', 10, '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z'),

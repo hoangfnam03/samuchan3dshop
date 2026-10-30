@@ -1,5 +1,5 @@
 import { getMedia, listCatalog } from './catalog'
-import { bodyRecord, createProduct, createVariant, customers, dashboard, login, logout, masterData, masterDataCrud, me, orders, products, requireAdmin, updateCustomer, updateOrderStatus, updateProduct, updateVariant, uploadMedia } from './admin'
+import { bodyRecord, createProduct, createVariant, customers, dashboard, deleteColorImage, deleteProduct, login, logout, masterData, masterDataCrud, me, orders, products, requireAdmin, updateCustomer, updateOrderStatus, updateProduct, updateVariant, uploadColorImage, uploadMedia } from './admin'
 import { createOrder, trackOrder, trackOrderByCode } from './orders'
 import type { Env, HealthResponse } from './contracts'
 
@@ -51,11 +51,15 @@ export default {
       if (url.pathname === '/api/admin/products' && request.method === 'GET') return products(request, env)
       if (url.pathname === '/api/admin/products' && request.method === 'POST') return createProduct(request, env)
       if (url.pathname === '/api/admin/media' && request.method === 'POST') return uploadMedia(request, env)
+      const colorImageMatch = url.pathname.match(/^\/api\/admin\/colors\/([^/]+)\/image$/)
+      if (colorImageMatch && request.method === 'POST') return uploadColorImage(request, env, decodeURIComponent(colorImageMatch[1]))
+      if (colorImageMatch && request.method === 'DELETE') return deleteColorImage(request, env, decodeURIComponent(colorImageMatch[1]))
       if (url.pathname === '/api/admin/orders' && request.method === 'GET') return orders(request, env)
       if (url.pathname === '/api/admin/customers' && request.method === 'GET') return customers(request, env)
 
       const productMatch = url.pathname.match(/^\/api\/admin\/products\/([^/]+)$/)
       if (productMatch && request.method === 'PATCH') return updateProduct(request, env, decodeURIComponent(productMatch[1]))
+      if (productMatch && request.method === 'DELETE') return deleteProduct(request, env, decodeURIComponent(productMatch[1]))
       const variantCreateMatch = url.pathname.match(/^\/api\/admin\/products\/([^/]+)\/variants$/)
       if (variantCreateMatch && request.method === 'POST') return createVariant(request, env, decodeURIComponent(variantCreateMatch[1]))
       const variantMatch = url.pathname.match(/^\/api\/admin\/variants\/([^/]+)$/)

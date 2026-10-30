@@ -130,13 +130,16 @@ export async function dashboard(request: Request, env: Env) {
 }
 
 export async function products(_request: Request, env: Env) {
-  const result = await env.DB.prepare('SELECT p.id, p.slug, p.name, p.description, p.category, p.status, p.base_price_vnd, p.image_key, p.image_url, p.demo_video_url, v.id AS variant_id, v.sku, c.id AS color_id, c.name AS color, s.id AS size_id, s.name AS size, v.price_vnd, v.stock_quantity, v.status AS variant_status FROM products p LEFT JOIN product_variants v ON v.product_id = p.id LEFT JOIN colors c ON c.id = v.color_id LEFT JOIN sizes s ON s.id = v.size_id ORDER BY p.created_at DESC, v.created_at ASC').all<ProductAdminRow>()
+  const result = await env.DB.prepare('SELECT p.id, p.slug, p.name, p.description, p.category, p.status, p.base_price_vnd, p.image_key, p.image_url, p.demo_video_url, v.id AS variant_id, v.sku, c.id AS color_id, c.display_name AS color, s.id AS size_id, s.name AS size, v.price_vnd, v.stock_quantity, v.status AS variant_status FROM products p LEFT JOIN product_variants v ON v.product_id = p.id LEFT JOIN colors c ON c.id = v.color_id LEFT JOIN sizes s ON s.id = v.size_id ORDER BY p.created_at DESC, v.created_at ASC').all<ProductAdminRow>()
   const media = await env.DB.prepare('SELECT product_id, media_type, url, sort_order FROM product_media ORDER BY product_id, sort_order ASC').all<ProductMediaAdminRow>()
+  const costs = await env.DB.prepare('SELECT id, product_id, label, cost_vnd AS costVnd, sort_order AS sortOrder FROM product_cost_items ORDER BY product_id, sort_order, label').all<{ id: string; product_id: string; label: string; costVnd: number; sortOrder: number }>()
   const mediaByProduct = new Map<string, string[]>()
+  const costsByProduct = new Map<string, Array<{ id: string; label: string; costVnd: number; sortOrder: number }>>()
   for (const item of media.results) if (item.media_type === 'image') mediaByProduct.set(item.product_id, [...(mediaByProduct.get(item.product_id) ?? []), item.url])
+  for (const item of costs.results) costsByProduct.set(item.product_id, [...(costsByProduct.get(item.product_id) ?? []), { id: item.id, label: item.label, costVnd: item.costVnd, sortOrder: item.sortOrder }])
   const map = new Map<string, Record<string, unknown>>()
   for (const row of result.results) {
-    const product = map.get(row.id) ?? { id: row.id, slug: row.slug, name: row.name, description: row.description, category: row.category, status: row.status, basePriceVnd: row.base_price_vnd, imageKey: row.image_key, imageUrl: row.image_url, imageUrls: mediaByProduct.get(row.id) ?? (row.image_url ? [row.image_url] : []), demoVideoUrl: row.demo_video_url, variants: [] as unknown[] }
+    const product = map.get(row.id) ?? { id: row.id, slug: row.slug, name: row.name, description: row.description, category: row.category, status: row.status, basePriceVnd: row.base_price_vnd, imageKey: row.image_key, imageUrl: row.image_url, imageUrls: mediaByProduct.get(row.id) ?? (row.image_url ? [row.image_url] : []), demoVideoUrl: row.demo_video_url, costItems: costsByProduct.get(row.id) ?? [], totalCostVnd: (costsByProduct.get(row.id) ?? []).reduce((sum, item) => sum + item.costVnd, 0), variants: [] as unknown[] }
     if (row.variant_id) (product.variants as unknown[]).push({ id: row.variant_id, sku: row.sku, colorId: row.color_id, color: row.color, sizeId: row.size_id, size: row.size, priceVnd: row.price_vnd, stockQuantity: row.stock_quantity, status: row.variant_status })
     map.set(row.id, product)
   }
@@ -160,6 +163,32 @@ export async function uploadMedia(request: Request, env: Env) {
   return Response.json({ data: uploaded }, { status: 201 })
 }
 
+export async function uploadColorImage(request: Request, env: Env, id: string) {
+  let form: FormData
+  try { form = await request.formData() } catch { return fail('INVALID_COLOR_IMAGE', 'Tệp ảnh không hợp lệ.', 400) }
+  const file = form.get('image')
+  if (!(file instanceof File) || file.size <= 0 || file.size > 10 * 1024 * 1024 || !file.type.startsWith('image/')) return fail('INVALID_COLOR_IMAGE', 'Chọn một ảnh có dung lượng tối đa 10MB.', 400)
+  const hex = stringField(form.get('hex'), 7)
+  if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return fail('INVALID_COLOR_IMAGE', 'Không đọc được mã màu đại diện từ ảnh.', 400)
+  const color = await env.DB.prepare('SELECT image_url FROM colors WHERE id = ?').bind(id).first<{ image_url: string | null }>()
+  if (!color) return fail('NOT_FOUND', 'Không tìm thấy màu sắc.', 404)
+  const extension = file.type.split('/')[1]?.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'img'
+  const key = 'colors/' + id + '/' + crypto.randomUUID() + '.' + extension
+  await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type } })
+  const imageUrl = '/media/' + key
+  await env.DB.prepare('UPDATE colors SET image_url = ?, hex = ?, updated_at = ? WHERE id = ?').bind(imageUrl, hex.toUpperCase(), new Date().toISOString(), id).run()
+  if (color.image_url?.startsWith('/media/')) await env.MEDIA.delete(color.image_url.slice('/media/'.length))
+  return Response.json({ data: { imageUrl } }, { status: 201 })
+}
+
+export async function deleteColorImage(_request: Request, env: Env, id: string) {
+  const color = await env.DB.prepare('SELECT image_url FROM colors WHERE id = ?').bind(id).first<{ image_url: string | null }>()
+  if (!color) return fail('NOT_FOUND', 'Không tìm thấy màu sắc.', 404)
+  await env.DB.prepare('UPDATE colors SET image_url = NULL, hex = NULL, updated_at = ? WHERE id = ?').bind(new Date().toISOString(), id).run()
+  if (color.image_url?.startsWith('/media/')) await env.MEDIA.delete(color.image_url.slice('/media/'.length))
+  return Response.json({ data: { id, imageRemoved: true } })
+}
+
 function slugify(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 180)
 }
@@ -178,18 +207,20 @@ async function resolveMasterId(env: Env, table: 'colors' | 'sizes', idValue: unk
   }
   const name = stringField(nameValue, 80)
   if (!name) return undefined
-  const existing = await env.DB.prepare('SELECT id FROM ' + table + ' WHERE name = ?').bind(name).first<{ id: string }>()
+  const nameColumn = table === 'colors' ? 'display_name' : 'name'
+  const existing = await env.DB.prepare('SELECT id FROM ' + table + ' WHERE ' + nameColumn + ' = ?').bind(name).first<{ id: string }>()
   if (existing) return existing.id
   const id = crypto.randomUUID()
   const code = slugify(name).slice(0, 60) + '-' + id.slice(0, 8)
   const now = new Date().toISOString()
-  await env.DB.prepare('INSERT INTO ' + table + ' (id, code, name, sort_order, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)').bind(id, code, name, now, now).run()
+  if (table === 'colors') await env.DB.prepare("INSERT INTO colors (id, code, name, display_name, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)").bind(id, code, '__color_' + id, name, now, now).run()
+  else await env.DB.prepare('INSERT INTO sizes (id, code, name, sort_order, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)').bind(id, code, name, now, now).run()
   return id
 }
 
 export async function masterData(_request: Request, env: Env) {
   const [colors, sizes, categories, statuses] = await env.DB.batch([
-    env.DB.prepare('SELECT id, code, name, hex, sort_order, is_active AS isActive FROM colors ORDER BY sort_order, name'),
+    env.DB.prepare('SELECT id, code, display_name AS name, hex, image_url AS imageUrl, filament_type AS materialType, sort_order, is_active AS isActive FROM colors ORDER BY filament_type, sort_order, display_name'),
     env.DB.prepare('SELECT id, code, name, sort_order, is_active AS isActive FROM sizes ORDER BY sort_order, name'),
     env.DB.prepare('SELECT id, code, name, sort_order, is_active AS isActive FROM product_categories ORDER BY sort_order, name'),
     env.DB.prepare('SELECT code, name, description, sort_order, is_terminal AS isTerminal, is_active AS isActive FROM order_statuses ORDER BY sort_order'),
@@ -211,23 +242,25 @@ export async function masterDataCrud(request: Request, env: Env, kind: string, i
     if (references && references.count > 0) return fail('MASTER_IN_USE', 'Không thể xóa dữ liệu master đang được sử dụng.', 409)
     const result = await env.DB.prepare('DELETE FROM ' + config.table + ' WHERE ' + config.idColumn + ' = ?').bind(id).run()
     if (!result.meta.changes) return fail('NOT_FOUND', 'Không tìm thấy dữ liệu master.', 404)
+
     return Response.json({ data: { id, deleted: true } })
   }
   const body = await bodyRecord(request)
   if (!body) return fail('INVALID_PAYLOAD', 'Payload không hợp lệ.', 400)
   const name = stringField(body.name, 120)
-  const code = stringField(body.code, 120)
+  const code = stringField(body.code, 120) ?? (kind === 'colors' ? 'color-' + crypto.randomUUID().slice(0, 8) : undefined)
   const hex = body.hex === null || body.hex === undefined ? null : stringField(body.hex, 20)
+  const materialType = body.materialType === undefined ? (request.method === 'POST' ? 'unclassified' : undefined) : stringField(body.materialType, 80)
   const description = body.description === null || body.description === undefined ? null : stringField(body.description, 300)
   const sortOrder = body.sortOrder === undefined ? 0 : (Number.isInteger(body.sortOrder) ? Number(body.sortOrder) : undefined)
   const active = body.isActive === undefined ? 1 : (body.isActive ? 1 : 0)
-  if (sortOrder === undefined) return fail('INVALID_MASTER', 'Thứ tự sắp xếp không hợp lệ.', 400)
+  if (sortOrder === undefined || body.hex !== undefined && body.hex !== null && body.hex !== '' && (!hex || !/^#[0-9a-f]{6}$/i.test(hex))) return fail('INVALID_MASTER', 'Thứ tự hoặc màu HEX không hợp lệ.', 400)
   if (request.method === 'POST') {
     const newId = kind === 'statuses' ? code : crypto.randomUUID()
-    if (!name || !code) return fail('INVALID_MASTER', 'Cần nhập mã và tên.', 400)
+    if (!name || !code || kind === 'colors' && !materialType) return fail('INVALID_MASTER', kind === 'colors' ? 'Cần nhập tên và loại nhựa cho màu.' : 'Cần nhập mã và tên.', 400)
     try {
       if (kind === 'statuses') await env.DB.prepare('INSERT INTO order_statuses (code, name, description, sort_order, is_terminal, is_active) VALUES (?, ?, ?, ?, ?, ?)').bind(newId, name, description, sortOrder, body.isTerminal ? 1 : 0, active).run()
-      else if (kind === 'colors') await env.DB.prepare('INSERT INTO colors (id, code, name, hex, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(newId, code, name, hex, sortOrder, active, new Date().toISOString(), new Date().toISOString()).run()
+      else if (kind === 'colors') await env.DB.prepare("INSERT INTO colors (id, code, name, display_name, hex, filament_type, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(newId, code, '__color_' + newId, name, hex, materialType, sortOrder, active, new Date().toISOString(), new Date().toISOString()).run()
       else if (kind === 'sizes') await env.DB.prepare('INSERT INTO sizes (id, code, name, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(newId, code, name, sortOrder, active, new Date().toISOString(), new Date().toISOString()).run()
       else await env.DB.prepare('INSERT INTO product_categories (id, code, name, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(newId, code, name, sortOrder, active, new Date().toISOString(), new Date().toISOString()).run()
     } catch { return fail('MASTER_DUPLICATE', 'Mã hoặc tên master đã tồn tại.', 409) }
@@ -237,13 +270,30 @@ export async function masterDataCrud(request: Request, env: Env, kind: string, i
     if (!name) return fail('INVALID_MASTER', 'Tên không hợp lệ.', 400)
     try {
       if (kind === 'statuses') await env.DB.prepare('UPDATE order_statuses SET name = ?, description = ?, sort_order = ?, is_terminal = ?, is_active = ? WHERE code = ?').bind(name, description, sortOrder, body.isTerminal ? 1 : 0, active, id).run()
-      else if (kind === 'colors') await env.DB.prepare('UPDATE colors SET name = ?, hex = ?, sort_order = ?, is_active = ?, updated_at = ? WHERE id = ?').bind(name, hex, sortOrder, active, new Date().toISOString(), id).run()
+      else if (kind === 'colors') {
+        if (!name || body.materialType !== undefined && !materialType) return fail('INVALID_MASTER', 'Tên màu hoặc loại nhựa không hợp lệ.', 400)
+        if (materialType !== undefined) await env.DB.prepare('UPDATE colors SET display_name = ?, hex = ?, filament_type = ?, sort_order = ?, is_active = ?, updated_at = ? WHERE id = ?').bind(name, hex, materialType, sortOrder, active, new Date().toISOString(), id).run()
+        else await env.DB.prepare('UPDATE colors SET display_name = ?, hex = ?, sort_order = ?, is_active = ?, updated_at = ? WHERE id = ?').bind(name, hex, sortOrder, active, new Date().toISOString(), id).run()
+      }
       else if (kind === 'sizes') await env.DB.prepare('UPDATE sizes SET name = ?, sort_order = ?, is_active = ?, updated_at = ? WHERE id = ?').bind(name, sortOrder, active, new Date().toISOString(), id).run()
       else await env.DB.prepare('UPDATE product_categories SET name = ?, sort_order = ?, is_active = ?, updated_at = ? WHERE id = ?').bind(name, sortOrder, active, new Date().toISOString(), id).run()
     } catch { return fail('MASTER_DUPLICATE', 'Tên master đã tồn tại.', 409) }
     return Response.json({ data: { id, updated: true } })
   }
   return fail('INVALID_MASTER_METHOD', 'Phương thức master data không hợp lệ.', 405)
+}
+
+function parseProductCostItems(value: unknown): Array<{ label: string; costVnd: number }> | undefined {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length > 30) return undefined
+  const parsed = value.map(item => {
+    if (!item || typeof item !== 'object') return undefined
+    const row = item as Record<string, unknown>
+    const label = stringField(row.label, 100)
+    const costVnd = Number.isSafeInteger(row.costVnd) && Number(row.costVnd) >= 0 && Number(row.costVnd) <= 2_000_000_000 ? Number(row.costVnd) : undefined
+    return label && costVnd !== undefined ? { label, costVnd } : undefined
+  })
+  return parsed.every((item): item is { label: string; costVnd: number } => Boolean(item)) ? parsed as Array<{ label: string; costVnd: number }> : undefined
 }
 
 export async function createProduct(request: Request, env: Env) {
@@ -256,13 +306,15 @@ export async function createProduct(request: Request, env: Env) {
   const imageUrl = body?.imageUrl === '' || body?.imageUrl === null ? null : (body?.imageUrl === undefined ? null : stringField(body.imageUrl, 2000))
   const imageUrls = body?.imageUrls === undefined ? (imageUrl ? [imageUrl] : []) : imageUrlList(body.imageUrls)
   const demoVideoUrl = body?.demoVideoUrl === '' || body?.demoVideoUrl === null ? null : (body?.demoVideoUrl === undefined ? null : stringField(body.demoVideoUrl, 2000))
-  if (!body || !name || description === undefined || body.category !== undefined && body.category !== null && !category || !status || price === undefined || body.imageUrl !== undefined && body.imageUrl !== '' && body.imageUrl !== null && !imageUrl || body.demoVideoUrl !== undefined && body.demoVideoUrl !== '' && body.demoVideoUrl !== null && !demoVideoUrl) return fail('INVALID_PRODUCT', 'Dữ liệu sản phẩm không hợp lệ.', 400)
+  const costItems = parseProductCostItems(body?.costItems)
+  if (!body || !name || description === undefined || body.category !== undefined && body.category !== null && !category || !status || price === undefined || body.imageUrl !== undefined && body.imageUrl !== '' && body.imageUrl !== null && !imageUrl || body.demoVideoUrl !== undefined && body.demoVideoUrl !== '' && body.demoVideoUrl !== null && !demoVideoUrl || body.costItems !== undefined && !costItems) return fail('INVALID_PRODUCT', 'Dữ liệu sản phẩm không hợp lệ.', 400)
   const id = crypto.randomUUID()
   const now = new Date().toISOString()
   const slug = slugify(stringField(body.slug, 200) ?? name) + '-' + id.slice(0, 8)
   await env.DB.batch([
     env.DB.prepare('INSERT INTO products (id, slug, name, description, category, status, base_price_vnd, image_url, demo_video_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, slug, name, description, category ?? null, status, price, imageUrls?.[0] ?? null, demoVideoUrl, now, now),
     ...((imageUrls ?? []).map((url, index) => env.DB.prepare('INSERT INTO product_media (id, product_id, media_type, url, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), id, 'image', url, index, now))),
+    ...(costItems ?? []).map((item, index) => env.DB.prepare('INSERT INTO product_cost_items (id, product_id, label, cost_vnd, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), id, item.label, item.costVnd, index, now, now)),
   ])
   return Response.json({ data: { id, slug } }, { status: 201 })
 }
@@ -300,7 +352,8 @@ export async function updateProduct(request: Request, env: Env, id: string) {
   const imageUrl = body.imageUrl === null || body.imageUrl === '' ? null : (body.imageUrl === undefined ? undefined : stringField(body.imageUrl, 2000))
   const imageUrls = body.imageUrls === undefined ? (body.imageUrl === undefined ? undefined : imageUrl ? [imageUrl] : []) : imageUrlList(body.imageUrls)
   const demoVideoUrl = body.demoVideoUrl === null || body.demoVideoUrl === '' ? null : (body.demoVideoUrl === undefined ? undefined : stringField(body.demoVideoUrl, 2000))
-  if (body.name !== undefined && !name || body.description !== undefined && description === undefined || body.category !== undefined && body.category !== null && !category || body.status !== undefined && !status || body.basePriceVnd !== undefined && price === undefined || body.imageUrl !== undefined && body.imageUrl !== null && body.imageUrl !== '' && !imageUrl || body.demoVideoUrl !== undefined && body.demoVideoUrl !== null && body.demoVideoUrl !== '' && !demoVideoUrl) return fail('INVALID_PRODUCT', 'Dữ liệu sản phẩm không hợp lệ.', 400)
+  const costItems = parseProductCostItems(body?.costItems)
+  if (body.name !== undefined && !name || body.description !== undefined && description === undefined || body.category !== undefined && body.category !== null && !category || body.status !== undefined && !status || body.basePriceVnd !== undefined && price === undefined || body.imageUrl !== undefined && body.imageUrl !== null && body.imageUrl !== '' && !imageUrl || body.demoVideoUrl !== undefined && body.demoVideoUrl !== null && body.demoVideoUrl !== '' && !demoVideoUrl || body.costItems !== undefined && !costItems) return fail('INVALID_PRODUCT', 'Dữ liệu sản phẩm không hợp lệ.', 400)
   if (name !== undefined) { fields.push('name = ?'); values.push(name) }
   if (description !== undefined) { fields.push('description = ?'); values.push(description) }
   if (body.category !== undefined) { fields.push('category = ?'); values.push(category ?? null) }
@@ -308,7 +361,7 @@ export async function updateProduct(request: Request, env: Env, id: string) {
   if (price !== undefined) { fields.push('base_price_vnd = ?'); values.push(price) }
   if (body.imageUrl !== undefined || body.imageUrls !== undefined) { fields.push('image_url = ?'); values.push(imageUrls?.[0] ?? null) }
   if (body.demoVideoUrl !== undefined) { fields.push('demo_video_url = ?'); values.push(demoVideoUrl ?? null) }
-  if (!fields.length) return fail('NO_CHANGES', 'Không có field cần cập nhật.', 400)
+  if (!fields.length && costItems === undefined) return fail('NO_CHANGES', 'Không có field cần cập nhật.', 400)
   fields.push('updated_at = ?'); values.push(new Date().toISOString()); values.push(id)
   const result = await env.DB.prepare('UPDATE products SET ' + fields.join(', ') + ' WHERE id = ?').bind(...values).run()
   if (imageUrls !== undefined) {
@@ -316,7 +369,22 @@ export async function updateProduct(request: Request, env: Env, id: string) {
     await env.DB.batch(imageUrls.map((url, index) => env.DB.prepare('INSERT INTO product_media (id, product_id, media_type, url, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), id, 'image', url, index, new Date().toISOString())))
   }
   if (!result.meta.changes) return fail('NOT_FOUND', 'Không tìm thấy sản phẩm.', 404)
+  if (costItems !== undefined) {
+    const now = new Date().toISOString()
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM product_cost_items WHERE product_id = ?').bind(id),
+      ...costItems.map((item, index) => env.DB.prepare('INSERT INTO product_cost_items (id, product_id, label, cost_vnd, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), id, item.label, item.costVnd, index, now, now)),
+    ])
+  }
   return Response.json({ data: { id, updated: true } })
+}
+
+export async function deleteProduct(_request: Request, env: Env, id: string) {
+  const references = await env.DB.prepare('SELECT COUNT(*) AS count FROM order_items WHERE product_id = ?').bind(id).first<{ count: number }>()
+  if (Number(references?.count ?? 0) > 0) return fail('PRODUCT_HAS_ORDERS', 'Sản phẩm đã có trong đơn hàng nên không thể xóa để bảo toàn lịch sử.', 409)
+  const result = await env.DB.prepare('DELETE FROM products WHERE id = ?').bind(id).run()
+  if (!result.meta.changes) return fail('NOT_FOUND', 'Không tìm thấy sản phẩm.', 404)
+  return Response.json({ data: { id, deleted: true } })
 }
 
 export async function updateVariant(request: Request, env: Env, id: string) {

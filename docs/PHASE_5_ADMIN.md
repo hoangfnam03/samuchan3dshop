@@ -6,6 +6,7 @@
 - Session token CSPRNG, chỉ lưu token hash trong D1, hết hạn sau 8 giờ.
 - Dashboard metrics doanh thu/order status.
 - Master data catalog: tạo/sửa sản phẩm, danh mục, trạng thái, giá; thêm/sửa variant, màu, size, SKU, giá và tồn kho. URL ảnh/video demo được lưu trong D1.
+- Giá vốn sản phẩm: Admin nhập nhiều khoản cost theo từng sản phẩm; tổng được tính tự động và chỉ trả về qua endpoint đã xác thực. Đơn mới lưu snapshot giá vốn từng món để hỗ trợ thống kê lãi sau này; storefront và tracking không nhận các trường cost.
 - Storefront lấy sản phẩm active từ Worker; checkout gửi variant ID để Worker tạo đơn trong D1, đơn hiển thị trong Admin.
 - Danh sách đơn hỗ trợ tìm theo mã đơn/tên/số điện thoại và lọc trạng thái. Admin chuyển trạng thái theo quy trình; tracking page đọc status history và trạng thái print job từ D1, tự làm mới mỗi 30 giây.
 - Cập nhật order status sẽ đồng bộ print job liên quan; cập nhật print job sang `printing`/`quality_check` sẽ tiến trạng thái order khi phù hợp (với nhiều mặt hàng, chờ tất cả print job tới QC).

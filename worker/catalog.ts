@@ -64,7 +64,7 @@ export async function listCatalog(request: Request, env: Env): Promise<Response>
   ).bind('active').all<ProductRow>()
 
   const variants = await env.DB.prepare(
-    'SELECT v.id, v.product_id, v.sku, c.name AS color, s.name AS size, v.price_vnd, v.stock_quantity, v.status, v.created_at, v.updated_at FROM product_variants v INNER JOIN products p ON p.id = v.product_id INNER JOIN colors c ON c.id = v.color_id INNER JOIN sizes s ON s.id = v.size_id WHERE p.status = ? AND v.status = ? ORDER BY v.product_id, v.created_at ASC',
+    'SELECT v.id, v.product_id, v.sku, c.display_name AS color, s.name AS size, v.price_vnd, v.stock_quantity, v.status, v.created_at, v.updated_at FROM product_variants v INNER JOIN products p ON p.id = v.product_id INNER JOIN colors c ON c.id = v.color_id INNER JOIN sizes s ON s.id = v.size_id WHERE p.status = ? AND v.status = ? ORDER BY v.product_id, v.created_at ASC',
   ).bind('active', 'active').all<VariantRow>()
   const media = await env.DB.prepare('SELECT product_id, media_type, url, sort_order FROM product_media ORDER BY product_id, sort_order ASC').all<MediaRow>()
   const mediaByProduct = new Map<string, MediaRow[]>()
