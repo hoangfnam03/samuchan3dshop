@@ -8,7 +8,7 @@ import type { SiteConfig } from '../data/siteConfig'
 interface Props {
   initialProducts: Product[]
   initialConfig: SiteConfig
-  onSave: (products: Product[], config: SiteConfig) => void
+  onSave: (products: Product[], config: SiteConfig) => void | Promise<void>
   onCancel: () => void
 }
 type EditTarget = { kind: 'site'; field: keyof SiteConfig } | { kind: 'product'; id: string | number; field: 'name' | 'image' } | null
@@ -30,11 +30,15 @@ export default function VisualEditorWorkspace({ initialProducts, initialConfig, 
       const result = await fetch('/api/admin/products', { credentials: 'include' })
       if (!result.ok) throw new Error('catalog unavailable')
       const payload = await result.json()
+      const settingsResponse = await fetch('/api/admin/site-config', { credentials: 'include' })
+      if (!settingsResponse.ok) throw new Error('site config unavailable')
+      const settingsPayload = await settingsResponse.json() as { data?: SiteConfig | null }
       const liveProducts: Product[] = payload.data.map((item: { id: string; name: string; description: string; category: string | null; basePriceVnd: number; imageUrl: string | null; demoVideoUrl: string | null; variants: Array<{ id: string; color: string; size: string; priceVnd: number | null; stockQuantity: number }> }) => {
         const variants = item.variants.map(variant => ({ id: variant.id, color: variant.color, size: variant.size, price: variant.priceVnd ?? item.basePriceVnd, stockQuantity: variant.stockQuantity }))
         return { id: item.id, name: item.name, description: item.description, category: item.category ?? '', price: item.basePriceVnd, image: item.imageUrl ?? '/brand/logo_samuchan.jpg', demoVideoUrl: item.demoVideoUrl ?? undefined, colors: [...new Set(variants.map(variant => variant.color))], sizes: [...new Set(variants.map(variant => variant.size))], stockQuantity: variants.reduce((sum, variant) => sum + variant.stockQuantity, 0), variants }
       })
       setDraftProducts(liveProducts); setOriginalProducts(structuredClone(liveProducts))
+      setDraftConfig(settingsPayload.data ?? initialConfig)
       setAuthorized(true)
     }).catch(() => { window.location.href = '/admin' })
   }, [])
@@ -42,7 +46,7 @@ export default function VisualEditorWorkspace({ initialProducts, initialConfig, 
   function setView(view: View) { setPreviewView(view); setEditing(null) }
   function addToCart(item: CartItem) {
     setCart(current => {
-      const index = current.findIndex(existing => existing.id === item.id && existing.color === item.color && existing.size === item.size)
+      const index = current.findIndex(existing => existing.id === item.id && existing.variantId === item.variantId && existing.customColorId === item.customColorId && existing.color === item.color && existing.size === item.size)
       return index < 0 ? [...current, item] : current.map((existing, currentIndex) => currentIndex === index ? { ...existing, quantity: existing.quantity + item.quantity } : existing)
     })
   }
@@ -88,7 +92,7 @@ export default function VisualEditorWorkspace({ initialProducts, initialConfig, 
       const response = await fetch('/api/admin/products/' + encodeURIComponent(String(product.id)), { method: 'PATCH', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: product.name, imageUrl: product.image || null }) })
       if (!response.ok) throw new Error('Không thể lưu ' + product.name)
     }
-    onSave(draftProducts, draftConfig)
+    await onSave(draftProducts, draftConfig)
   }
   function renderPreview() {
     if (typeof previewView === 'object') return <ProductDetail product={draftProducts.find(product => product.id === previewView.id) ?? draftProducts[0]} setView={setView} addToCart={addToCart} />

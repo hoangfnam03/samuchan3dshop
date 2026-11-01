@@ -23,7 +23,5 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Deploy Worker and static assets
+      - name: Build, migrate production D1, and deploy Worker/assets
         run: npm run deploy
-      - name: Apply D1 migrations
-        run: npm run worker:d1:migrate:remote

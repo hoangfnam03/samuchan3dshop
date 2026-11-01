@@ -1,5 +1,5 @@
 import { getMedia, listCatalog } from './catalog'
-import { bodyRecord, createProduct, createVariant, customers, dashboard, deleteColorImage, deleteProduct, login, logout, masterData, masterDataCrud, me, orders, products, requireAdmin, updateCustomer, updateOrderStatus, updateProduct, updateVariant, uploadColorImage, uploadMedia } from './admin'
+import { bodyRecord, createFilamentPurchaseBatch, createProduct, createVariant, customers, dashboard, deleteColorImage, deleteProduct, deleteProductColorPreview, deleteVariantImage, getSiteConfig, login, logout, masterData, masterDataCrud, me, orders, products, requireAdmin, saveSiteConfig, updateCustomer, updateFilamentTypePrice, updateOrderStatus, updateProduct, updateVariant, uploadColorImage, uploadMedia, uploadProductColorPreview, uploadVariantImage } from './admin'
 import { createOrder, trackOrder, trackOrderByCode } from './orders'
 import type { Env, HealthResponse } from './contracts'
 
@@ -45,15 +45,25 @@ export default {
       if (identity instanceof Response) return identity
       if (url.pathname === '/api/admin/me' && request.method === 'GET') return me(request, env)
       if (url.pathname === '/api/admin/dashboard' && request.method === 'GET') return dashboard(request, env)
+      if (url.pathname === '/api/admin/site-config' && request.method === 'GET') return getSiteConfig(request, env)
+      if (url.pathname === '/api/admin/site-config' && request.method === 'PUT') return saveSiteConfig(request, env, await bodyRecord(request))
       if (url.pathname === '/api/admin/master-data' && request.method === 'GET') return masterData(request, env)
+      if (url.pathname === '/api/admin/filament-type-prices' && request.method === 'PUT') return updateFilamentTypePrice(request, env, await bodyRecord(request))
+      if (url.pathname === '/api/admin/filament-purchase-batches' && request.method === 'POST') return createFilamentPurchaseBatch(request, env, await bodyRecord(request))
       const masterMatch = url.pathname.match(/^\/api\/admin\/master-data\/(categories|colors|sizes|statuses)(?:\/([^/]+))?$/)
       if (masterMatch && ['POST', 'PATCH', 'DELETE'].includes(request.method)) return masterDataCrud(request, env, masterMatch[1], masterMatch[2] ? decodeURIComponent(masterMatch[2]) : undefined)
       if (url.pathname === '/api/admin/products' && request.method === 'GET') return products(request, env)
       if (url.pathname === '/api/admin/products' && request.method === 'POST') return createProduct(request, env)
       if (url.pathname === '/api/admin/media' && request.method === 'POST') return uploadMedia(request, env)
+      const colorPreviewMatch = url.pathname.match(/^\/api\/admin\/products\/([^/]+)\/color-preview$/)
+      if (colorPreviewMatch && request.method === 'POST') return uploadProductColorPreview(request, env, decodeURIComponent(colorPreviewMatch[1]))
+      if (colorPreviewMatch && request.method === 'DELETE') return deleteProductColorPreview(request, env, decodeURIComponent(colorPreviewMatch[1]))
       const colorImageMatch = url.pathname.match(/^\/api\/admin\/colors\/([^/]+)\/image$/)
       if (colorImageMatch && request.method === 'POST') return uploadColorImage(request, env, decodeURIComponent(colorImageMatch[1]))
       if (colorImageMatch && request.method === 'DELETE') return deleteColorImage(request, env, decodeURIComponent(colorImageMatch[1]))
+      const variantImageMatch = url.pathname.match(/^\/api\/admin\/variants\/([^/]+)\/image$/)
+      if (variantImageMatch && request.method === 'POST') return uploadVariantImage(request, env, decodeURIComponent(variantImageMatch[1]))
+      if (variantImageMatch && request.method === 'DELETE') return deleteVariantImage(request, env, decodeURIComponent(variantImageMatch[1]))
       if (url.pathname === '/api/admin/orders' && request.method === 'GET') return orders(request, env)
       if (url.pathname === '/api/admin/customers' && request.method === 'GET') return customers(request, env)
 
@@ -74,6 +84,8 @@ export default {
     if (url.pathname === '/api/catalog/products' && request.method === 'GET') {
       return listCatalog(request, env)
     }
+
+    if (url.pathname === '/api/site-config' && request.method === 'GET') return getSiteConfig(request, env)
 
     if (url.pathname === '/api/orders' && request.method === 'POST') {
       return createOrder(request, env)

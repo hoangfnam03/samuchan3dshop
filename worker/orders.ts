@@ -1,8 +1,13 @@
 import type { Env, OrderStatus } from './contracts'
+import { parseStoredFilamentTypes } from './filament-types'
+import { filamentTypeKey } from './filament-pricing'
+import { activeDiscountPercent, discountedPrice } from './discounts'
 
 interface CreateOrderItemInput {
-  variantId: string
+  variantId?: string
+  filamentColorId?: string
   quantity: number
+  customColorId?: string
   option?: Record<string, unknown>
 }
 
@@ -17,15 +22,24 @@ interface CreateOrderInput {
 interface VariantPriceRow {
   variant_id: string
   product_id: string
+  size_id: string
   sku: string
   color: string
+  color_is_available: number
+  product_filament_types: string | null
+  product_filament_type: string | null
   size: string
   price_vnd: number | null
-  stock_quantity: number
   product_name: string
   base_price_vnd: number
   unit_cost_vnd: number
 }
+
+interface PriceTierRow { product_id: string; size_id: string; price_vnd: number | null; base_price_vnd: number; discount_percent: number; discount_ends_on: string | null }
+interface FilamentColorRow { id: string; code: string; display_name: string; brand: string; filament_type: string; is_active: number }
+interface FilamentTypePriceRow { material_type_key: string; material_type: string; price_vnd: number; total_cost_vnd: number; purchase_lot_count: number; discount_percent: number; discount_ends_on: string | null }
+
+const priceTierKey = (productId: string, sizeId: string) => productId + ':' + sizeId
 
 interface OrderRow {
   id: string
@@ -45,6 +59,7 @@ interface PublicItemRow {
   size_snapshot: string
   unit_price_vnd: number
   quantity: number
+  option_snapshot_json: string | null
 }
 
 interface StatusRow {
@@ -115,19 +130,33 @@ async function parseCreateOrder(request: Request): Promise<CreateOrderInput | Re
 
   const merged = new Map<string, CreateOrderItemInput>()
   for (const rawItem of raw.items) {
-    if (!isRecord(rawItem) || typeof rawItem.variantId !== 'string' || !/^[A-Za-z0-9_-]{1,120}$/.test(rawItem.variantId)) {
-      return errorResponse('INVALID_VARIANT', 'Variant trong đơn hàng không hợp lệ.', 400)
-    }
+    if (!isRecord(rawItem)) return errorResponse('INVALID_ITEM', 'Sản phẩm trong đơn hàng không hợp lệ.', 400)
+    const variantId = typeof rawItem.variantId === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(rawItem.variantId) ? rawItem.variantId : undefined
+    const filamentColorId = typeof rawItem.filamentColorId === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(rawItem.filamentColorId) ? rawItem.filamentColorId : undefined
+    if (Boolean(variantId) === Boolean(filamentColorId)) return errorResponse('INVALID_ITEM', 'Mỗi sản phẩm phải là một variant hoặc một cuộn nhựa hợp lệ.', 400)
     if (!Number.isInteger(rawItem.quantity) || Number(rawItem.quantity) < 1 || Number(rawItem.quantity) > MAX_QUANTITY_PER_ITEM) {
-      return errorResponse('INVALID_QUANTITY', 'Số lượng mỗi variant phải từ 1 đến 100.', 400)
+      return errorResponse('INVALID_QUANTITY', 'Số lượng mỗi sản phẩm phải từ 1 đến 100.', 400)
     }
-    const existing = merged.get(rawItem.variantId)
+    if (rawItem.customColorId !== undefined && (typeof rawItem.customColorId !== 'string' || !/^[A-Za-z0-9_-]{1,120}$/.test(rawItem.customColorId))) {
+      return errorResponse('INVALID_COLOR', 'Màu tùy chỉnh trong đơn hàng không hợp lệ.', 400)
+    }
+    if (rawItem.customColorId !== undefined && !variantId) return errorResponse('INVALID_COLOR', 'Màu tùy chỉnh chỉ áp dụng cho sản phẩm in 3D.', 400)
+    const customColorId = typeof rawItem.customColorId === 'string' ? rawItem.customColorId : undefined
+    const key = filamentColorId ? 'filament:' + filamentColorId : 'variant:' + variantId + ':' + (customColorId ?? '')
+    const existing = merged.get(key)
     const quantity = (existing?.quantity ?? 0) + Number(rawItem.quantity)
     if (quantity > MAX_QUANTITY_PER_ITEM) return errorResponse('INVALID_QUANTITY', 'Tổng số lượng một variant không được vượt quá 100.', 400)
-    merged.set(rawItem.variantId, {
-      variantId: rawItem.variantId,
+    const option = isRecord(rawItem.option) ? { ...rawItem.option } : undefined
+    if (option) {
+      delete option.customColorId
+      delete option.customColorOrder
+      delete option.availabilityNote
+    }
+    merged.set(key, {
+      ...(variantId ? { variantId } : { filamentColorId }),
       quantity,
-      option: isRecord(rawItem.option) ? rawItem.option : undefined,
+      customColorId,
+      option,
     })
   }
 
@@ -138,19 +167,86 @@ export async function createOrder(request: Request, env: Env): Promise<Response>
   const input = await parseCreateOrder(request)
   if (input instanceof Response) return input
 
-  const placeholders = input.items.map(() => '?').join(', ')
-  const rows = await env.DB.prepare(
-    'SELECT v.id AS variant_id, v.product_id, v.sku, c.display_name AS color, s.name AS size, v.price_vnd, v.stock_quantity, p.name AS product_name, p.base_price_vnd, (SELECT COALESCE(SUM(ci.cost_vnd), 0) FROM product_cost_items ci WHERE ci.product_id = p.id) AS unit_cost_vnd FROM product_variants v INNER JOIN products p ON p.id = v.product_id INNER JOIN colors c ON c.id = v.color_id INNER JOIN sizes s ON s.id = v.size_id WHERE v.id IN (' + placeholders + ') AND v.status = ? AND p.status = ?',
-  ).bind(...input.items.map(item => item.variantId), 'active', 'active').all<VariantPriceRow>()
+  const variantItems = input.items.filter((item): item is CreateOrderItemInput & { variantId: string } => Boolean(item.variantId))
+  const filamentItems = input.items.filter((item): item is CreateOrderItemInput & { filamentColorId: string } => Boolean(item.filamentColorId))
+  const variantPlaceholders = variantItems.map(() => '?').join(', ')
+  const rows = variantItems.length ? await env.DB.prepare(
+    'SELECT v.id AS variant_id, v.product_id, v.size_id, v.sku, c.display_name AS color, c.is_active AS color_is_available, p.filament_types AS product_filament_types, p.filament_type AS product_filament_type, s.name AS size, v.price_vnd, p.name AS product_name, p.base_price_vnd, (SELECT COALESCE(SUM(ci.cost_vnd), 0) FROM product_cost_items ci WHERE ci.product_id = p.id) AS unit_cost_vnd FROM product_variants v INNER JOIN products p ON p.id = v.product_id INNER JOIN colors c ON c.id = v.color_id INNER JOIN sizes s ON s.id = v.size_id WHERE v.id IN (' + variantPlaceholders + ') AND v.status = ? AND p.status = ?',
+  ).bind(...variantItems.map(item => item.variantId), 'active', 'active').all<VariantPriceRow>() : { results: [] as VariantPriceRow[] }
 
   const byId = new Map(rows.results.map(row => [row.variant_id, row]))
-  if (byId.size !== input.items.length) return errorResponse('VARIANT_UNAVAILABLE', 'Một hoặc nhiều variant không còn khả dụng.', 409)
+  if (byId.size !== new Set(variantItems.map(item => item.variantId)).size) return errorResponse('VARIANT_UNAVAILABLE', 'Một hoặc nhiều variant không còn khả dụng.', 409)
+
+  const pricePairs = [...new Map(variantItems.map(item => {
+    const variant = byId.get(item.variantId)!
+    return [priceTierKey(variant.product_id, variant.size_id), { productId: variant.product_id, sizeId: variant.size_id }]
+  })).values()]
+  const pricePairConditions = pricePairs.map(() => '(v.product_id = ? AND v.size_id = ?)').join(' OR ')
+  const priceTierRows = pricePairs.length ? await env.DB.prepare('SELECT v.product_id, v.size_id, v.price_vnd, p.base_price_vnd, p.discount_percent, p.discount_ends_on FROM product_variants v INNER JOIN products p ON p.id = v.product_id WHERE p.status = ? AND v.status = ? AND (' + pricePairConditions + ') ORDER BY v.product_id, v.size_id, v.created_at ASC, v.id ASC').bind('active', 'active', ...pricePairs.flatMap(pair => [pair.productId, pair.sizeId])).all<PriceTierRow>() : { results: [] as PriceTierRow[] }
+  const priceBySize = new Map<string, number>()
+  const pricingNow = Date.now()
+  for (const row of priceTierRows.results) {
+    const key = priceTierKey(row.product_id, row.size_id)
+    if (!priceBySize.has(key)) {
+      const regularPrice = row.price_vnd ?? row.base_price_vnd
+      const discountPercent = activeDiscountPercent(row.discount_percent, row.discount_ends_on, pricingNow)
+      priceBySize.set(key, discountedPrice(regularPrice, discountPercent))
+    }
+  }
+
+  const filamentColorIds = [...new Set(filamentItems.map(item => item.filamentColorId))]
+  const filamentColorPlaceholders = filamentColorIds.map(() => '?').join(', ')
+  const filamentColorRows = filamentColorIds.length ? await env.DB.prepare('SELECT id, code, display_name, brand, filament_type, is_active FROM colors WHERE id IN (' + filamentColorPlaceholders + ')').bind(...filamentColorIds).all<FilamentColorRow>() : { results: [] as FilamentColorRow[] }
+  const filamentColors = new Map(filamentColorRows.results.map(item => [item.id, item]))
+  if (filamentColors.size !== filamentColorIds.length) return errorResponse('FILAMENT_COLOR_UNAVAILABLE', 'Một hoặc nhiều màu nhựa không còn trong danh sách.', 409)
+  const typePriceRows = filamentColorIds.length ? await env.DB.prepare('SELECT material_type_key, material_type, price_vnd, total_cost_vnd, (SELECT COUNT(*) FROM filament_purchase_lots WHERE filament_purchase_lots.material_type_key = filament_type_prices.material_type_key) AS purchase_lot_count, discount_percent, discount_ends_on FROM filament_type_prices').all<FilamentTypePriceRow>() : { results: [] as FilamentTypePriceRow[] }
+  const fixedFilamentCostTotal = filamentColorIds.length ? (await env.DB.prepare('SELECT COALESCE(SUM(cost_vnd), 0) AS total_cost_vnd FROM fixed_filament_cost_items').first<{ total_cost_vnd: number }>())?.total_cost_vnd ?? 0 : 0
+  const priceByType = new Map(typePriceRows.results.map(item => {
+    const discountPercent = activeDiscountPercent(item.discount_percent, item.discount_ends_on, pricingNow)
+    return [item.material_type_key, discountedPrice(item.price_vnd, discountPercent)]
+  }))
+  const costByType = new Map(typePriceRows.results.map(item => [item.material_type_key, item.total_cost_vnd + (item.purchase_lot_count ? 0 : fixedFilamentCostTotal)]))
+  const priceByFilamentColor = new Map<string, number>()
+  for (const color of filamentColorRows.results) {
+    const price = priceByType.get(filamentTypeKey(color.filament_type))
+    if (price === undefined) return errorResponse('FILAMENT_PRICE_UNAVAILABLE', 'Shop chưa cài giá bán cho loại nhựa này.', 409)
+    priceByFilamentColor.set(color.id, price)
+  }
+
+  const customColorIds = [...new Set(input.items.map(item => item.customColorId).filter((id): id is string => Boolean(id)))]
+  const customColors = new Map<string, { name: string; materialType: string; isAvailable: boolean }>()
+  if (customColorIds.length) {
+    const colorPlaceholders = customColorIds.map(() => '?').join(', ')
+    const colorRows = await env.DB.prepare('SELECT id, display_name, filament_type, is_active FROM colors WHERE id IN (' + colorPlaceholders + ')').bind(...customColorIds).all<{ id: string; display_name: string; filament_type: string; is_active: number }>()
+    for (const colorRow of colorRows.results) customColors.set(colorRow.id, { name: colorRow.display_name, materialType: colorRow.filament_type, isAvailable: colorRow.is_active === 1 })
+    if (customColors.size !== customColorIds.length) return errorResponse('CUSTOM_COLOR_UNAVAILABLE', 'Màu tùy chỉnh không còn khả dụng.', 409)
+
+    const productIds = [...new Set(variantItems.map(item => byId.get(item.variantId)!.product_id))]
+    const productPlaceholders = productIds.map(() => '?').join(', ')
+    const existingProductColors = await env.DB.prepare('SELECT product_id, color_id FROM product_variants WHERE product_id IN (' + productPlaceholders + ') AND color_id IN (' + colorPlaceholders + ') AND status = ?').bind(...productIds, ...customColorIds, 'active').all<{ product_id: string; color_id: string }>()
+    const existingPairs = new Set(existingProductColors.results.map(row => row.product_id + ':' + row.color_id))
+    for (const item of variantItems) {
+      if (!item.customColorId) continue
+      const variant = byId.get(item.variantId)!
+      const customColor = customColors.get(item.customColorId)!
+      const previewFilamentTypes = parseStoredFilamentTypes(variant.product_filament_types, variant.product_filament_type)
+      if (previewFilamentTypes.length && !previewFilamentTypes.includes(customColor.materialType)) return errorResponse('CUSTOM_COLOR_FILAMENT_MISMATCH', 'Màu tùy chỉnh phải thuộc một trong các loại nhựa đã chọn cho sản phẩm.', 409)
+      if (existingPairs.has(variant.product_id + ':' + item.customColorId)) return errorResponse('CUSTOM_COLOR_IS_VARIANT', 'Màu này đã có variant riêng của sản phẩm. Vui lòng chọn màu có sẵn.', 409)
+    }
+  }
 
   let subtotalVnd = 0
   for (const item of input.items) {
-    const variant = byId.get(item.variantId)!
-    if (item.quantity > variant.stock_quantity) return errorResponse('OUT_OF_STOCK', 'Một hoặc nhiều variant không đủ tồn kho.', 409)
-    subtotalVnd += (variant.price_vnd ?? variant.base_price_vnd) * item.quantity
+    if (item.filamentColorId) {
+      const price = priceByFilamentColor.get(item.filamentColorId)
+      if (price === undefined) return errorResponse('FILAMENT_PRICE_UNAVAILABLE', 'Shop chưa cài giá bán cho loại nhựa này.', 409)
+      subtotalVnd += price * item.quantity
+      continue
+    }
+    const variant = byId.get(item.variantId!)!
+    const price = priceBySize.get(priceTierKey(variant.product_id, variant.size_id))
+    if (price === undefined) return errorResponse('VARIANT_UNAVAILABLE', 'Không tìm thấy giá cho kích thước đã chọn.', 409)
+    subtotalVnd += price * item.quantity
   }
 
   const shippingFeeVnd = 0
@@ -175,14 +271,27 @@ export async function createOrder(request: Request, env: Env): Promise<Response>
   ]
 
   for (const item of input.items) {
-    const variant = byId.get(item.variantId)!
-    const unitPriceVnd = variant.price_vnd ?? variant.base_price_vnd
-    statements.push(env.DB.prepare(
-      'UPDATE product_variants SET stock_quantity = stock_quantity - ?, updated_at = ? WHERE id = ? AND status = ?',
-    ).bind(item.quantity, now, variant.variant_id, 'active'))
+    if (item.filamentColorId) {
+      const color = filamentColors.get(item.filamentColorId)!
+      const unitPriceVnd = priceByFilamentColor.get(color.id)!
+      const unitCostVnd = costByType.get(filamentTypeKey(color.filament_type)) ?? 0
+      const availabilityNote = color.is_active === 1 ? undefined : 'Màu này chưa có sẵn, vui lòng đợi 7 ngày để hàng về.'
+      const optionSnapshot = { kind: 'filament', filamentColorId: color.id, brand: color.brand, materialType: color.filament_type, ...(availabilityNote ? { availabilityNote } : {}) }
+      statements.push(env.DB.prepare(
+        'INSERT INTO order_items (id, order_id, product_id, variant_id, product_name_snapshot, sku_snapshot, color_snapshot, size_snapshot, unit_price_vnd, unit_cost_vnd, quantity, option_snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ).bind(crypto.randomUUID(), id, 'filament', 'filament-' + color.id, 'Nhựa in 3D · ' + color.filament_type, 'FILAMENT-' + color.code, color.display_name + (color.brand ? ' · ' + color.brand : ''), 'Cuộn 1kg', unitPriceVnd, unitCostVnd, item.quantity, JSON.stringify(optionSnapshot)))
+      continue
+    }
+    const variant = byId.get(item.variantId!)!
+    const unitPriceVnd = priceBySize.get(priceTierKey(variant.product_id, variant.size_id)) ?? variant.base_price_vnd
+    const isAvailable = item.customColorId ? customColors.get(item.customColorId)!.isAvailable : variant.color_is_available === 1
+    const availabilityNote = isAvailable ? undefined : 'Màu này chưa có sẵn, vui lòng đợi 7 ngày để hàng về.'
+    const optionSnapshot = item.customColorId
+      ? { ...item.option, ...(availabilityNote ? { availabilityNote } : {}), customColorId: item.customColorId, customColorOrder: true }
+      : availabilityNote ? { ...item.option, availabilityNote } : item.option
     statements.push(env.DB.prepare(
       'INSERT INTO order_items (id, order_id, product_id, variant_id, product_name_snapshot, sku_snapshot, color_snapshot, size_snapshot, unit_price_vnd, unit_cost_vnd, quantity, option_snapshot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    ).bind(crypto.randomUUID(), id, variant.product_id, variant.variant_id, variant.product_name, variant.sku, variant.color, variant.size, unitPriceVnd, variant.unit_cost_vnd, item.quantity, item.option ? JSON.stringify(item.option) : null))
+    ).bind(crypto.randomUUID(), id, variant.product_id, variant.variant_id, variant.product_name, variant.sku, item.customColorId ? 'Màu tùy chỉnh: ' + customColors.get(item.customColorId)!.name : variant.color, variant.size, unitPriceVnd, variant.unit_cost_vnd, item.quantity, optionSnapshot ? JSON.stringify(optionSnapshot) : null))
   }
 
   statements.push(env.DB.prepare(
@@ -192,7 +301,7 @@ export async function createOrder(request: Request, env: Env): Promise<Response>
   try {
     await env.DB.batch(statements)
   } catch {
-    return errorResponse('OUT_OF_STOCK', 'Một hoặc nhiều variant vừa hết tồn kho. Vui lòng thử lại.', 409)
+    return errorResponse('ORDER_SAVE_FAILED', 'Không thể lưu đơn hàng lúc này. Vui lòng thử lại.', 500)
   }
 
   return Response.json({
@@ -230,7 +339,7 @@ export async function trackOrderByCode(_request: Request, env: Env, orderCode: s
 
 async function trackingPayload(env: Env, orderResult: OrderRow): Promise<Response> {
   const [itemsResult, historyResult] = await env.DB.batch([
-    env.DB.prepare('SELECT i.product_name_snapshot, i.sku_snapshot, i.color_snapshot, i.size_snapshot, i.unit_price_vnd, i.quantity FROM order_items i WHERE i.order_id = ? ORDER BY i.rowid ASC').bind(orderResult.id),
+    env.DB.prepare('SELECT i.product_name_snapshot, i.sku_snapshot, i.color_snapshot, i.size_snapshot, i.unit_price_vnd, i.quantity, i.option_snapshot_json FROM order_items i WHERE i.order_id = ? ORDER BY i.rowid ASC').bind(orderResult.id),
     env.DB.prepare('SELECT from_status, to_status, note, created_at FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC').bind(orderResult.id),
   ])
 
@@ -243,14 +352,27 @@ async function trackingPayload(env: Env, orderResult: OrderRow): Promise<Respons
       totalVnd: orderResult.total_vnd,
       createdAt: orderResult.created_at,
       updatedAt: orderResult.updated_at,
-      items: (itemsResult.results as unknown as PublicItemRow[]).map(item => ({
-        name: item.product_name_snapshot,
-        sku: item.sku_snapshot,
-        color: item.color_snapshot,
-        size: item.size_snapshot,
-        unitPriceVnd: item.unit_price_vnd,
-        quantity: item.quantity,
-      })),
+      items: (itemsResult.results as unknown as PublicItemRow[]).map(item => {
+        let availabilityNote: string | undefined
+        if (item.option_snapshot_json) {
+          try {
+            const option = JSON.parse(item.option_snapshot_json) as unknown
+            if (typeof option === 'object' && option !== null && !Array.isArray(option)) {
+              const note = (option as Record<string, unknown>).availabilityNote
+              if (typeof note === 'string') availabilityNote = note
+            }
+          } catch { /* Ignore malformed legacy snapshots. */ }
+        }
+        return {
+          name: item.product_name_snapshot,
+          sku: item.sku_snapshot,
+          color: item.color_snapshot,
+          size: item.size_snapshot,
+          unitPriceVnd: item.unit_price_vnd,
+          quantity: item.quantity,
+          availabilityNote,
+        }
+      }),
       history: (historyResult.results as unknown as StatusRow[]).map(event => ({
         fromStatus: event.from_status,
         toStatus: event.to_status,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Product, View } from '../types'
-import { formatPrice } from '../utils/format'
+import { PriceDisplay } from './PriceDisplay'
 
 interface ProductCardProps {
   product: Product
@@ -19,15 +19,15 @@ export function ProductCard({ product, setView, onEdit }: ProductCardProps) {
           {images.slice(0, 2).map((image, index) => <img key={image} src={image} alt={index === 0 ? product.name : ''} />)}
         </span>
         {onEdit && <button className="inline-edit image-edit" type="button" onClick={event => { event.stopPropagation(); onEdit(product.id, 'image') }} aria-label="Chỉnh ảnh sản phẩm">✎</button>}
-        {product.stockQuantity === 0 && <b className="sold-out">Hết hàng</b>}
-        {product.badge && product.stockQuantity > 0 && <b className="product-badge">{product.badge}</b>}
+        {product.badge && <b className="product-badge">{product.badge}</b>}
       </span>
       <span className="product-info">
         <span>
           <strong>{product.name}{onEdit && <button className="inline-edit" type="button" onClick={event => { event.stopPropagation(); onEdit(product.id, 'name') }} aria-label="Chỉnh tên sản phẩm">✎</button>}</strong>
-          <small>{product.colors.length} màu sắc · {product.sizes.length} size</small>
+          {product.category && <small className="product-category">{product.category}</small>}
+          <small className="product-option-count">{product.colors.length} màu sắc · {product.sizes.length} size</small>
         </span>
-        <b>{formatPrice(product.price)}</b>
+        <PriceDisplay price={product.price} originalPrice={product.originalPrice} discountPercent={product.discountPercent} discountEndsOn={product.discountEndsOn} />
       </span>
     </div>
   )

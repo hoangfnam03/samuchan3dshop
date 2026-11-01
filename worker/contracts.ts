@@ -10,6 +10,7 @@ export interface ProductRecord {
   name: string
   description: string
   categoryId?: Id
+  filamentTypes?: string[]
   status: ProductStatus
   basePriceVnd: MoneyVnd
   createdAt: IsoDate
@@ -22,6 +23,7 @@ export interface ProductVariantRecord {
   sku: string
   colorId: Id
   sizeId: Id
+  imageUrl?: string | null
   priceVnd?: MoneyVnd
   stockQuantity: number
   status: ProductStatus

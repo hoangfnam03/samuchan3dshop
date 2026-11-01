@@ -3,14 +3,15 @@
 ## Đã triển khai
 
 - POST /api/orders với validation payload và giới hạn kích thước.
-- Server tự lấy giá, product, variant và stock từ D1.
-- Không tin price/stock/total từ browser.
+- Server tự lấy giá, product, variant và trạng thái sẵn có của màu từ D1; không quản lý số lượng tồn kho.
+- Không tin giá hoặc tổng tiền từ browser; trạng thái màu luôn xác thực từ D1.
 - Gộp duplicate variant trong cùng request.
 - Tạo order code bằng random bytes, không dùng sequential ID.
 - Tạo tracking token 32 bytes CSPRNG và chỉ lưu SHA-256 hash.
 - Ghi orders, order_items và order_status_history trong một D1 batch.
 - GET /api/orders/track/:token và GET /api/orders/track/code/:orderCode chỉ trả dữ liệu tracking cần thiết, không trả tên khách, số điện thoại, địa chỉ, token hash hoặc secret.
-- Từ chối variant inactive/không tồn tại và thiếu stock.
+- Từ chối variant inactive/không tồn tại. Variant màu “Chưa có sẵn” vẫn đặt được và hiển thị ghi chú chờ 7 ngày; không kiểm tra, trừ hoặc cộng tồn kho.
+- Màu custom dùng ID màu master thuộc một trong các loại nhựa được chọn cho preview sản phẩm, kể cả màu “Chưa có sẵn”; Worker lấy tên và trạng thái từ D1, dùng variant cùng kích thước để tính giá và lưu ghi chú chờ 7 ngày vào snapshot đơn khi cần. Variant màu có sẵn không bị giới hạn theo loại nhựa preview.
 
 ## Create order
 
@@ -48,10 +49,8 @@ Tracking response gồm:
 
 ## Chưa triển khai
 
-- Payment, notification/Zalo, admin status mutation.
+- Thanh toán và thông báo/Zalo.
 - Rate limiting/abuse protection và retention policy production.
-- Trừ stock khi create order (hiện tại chỉ kiểm tra stock; policy reservation sẽ chốt trước production).
-- Frontend checkout gọi API thật; UI vẫn mock để tách phase và tránh đưa dữ liệu thật vào browser flow.
 
 ## Kiểm tra local
 
@@ -60,4 +59,4 @@ npm run worker:d1:migrate
 npm run worker:dev
 ~~~
 
-Đã kiểm tra local: create order 201, tracking 200, out-of-stock 409 và token sai 404.
+Trước khi bỏ quản lý tồn kho, đã kiểm tra local: create order 201, tracking 200, out-of-stock 409 và token sai 404; kiểm tra đó không còn áp dụng cho tồn kho hiện tại.

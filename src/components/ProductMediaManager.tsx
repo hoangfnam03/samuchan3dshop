@@ -34,9 +34,17 @@ export default function ProductMediaManager({ items, onAdd, onRemove, onReplace,
 }
 
 function MediaEditModal({ item, onCancel, onSave }: { item: MediaDraft; onCancel: () => void; onSave: (file: File) => void }) {
+  if (item.type === 'image') return <ImageCropModal item={item} onCancel={onCancel} onSave={onSave} />
   return <div className="admin-modal-backdrop media-edit-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCancel() }}><section className="admin-modal media-edit-modal" role="dialog" aria-modal="true" aria-labelledby="media-edit-title">
-    <div className="admin-modal-heading"><div><p className="admin-kicker">MEDIA EDITOR</p><h2 id="media-edit-title">{item.type === 'image' ? 'Cắt ảnh' : 'Cắt thời lượng video'}</h2></div><button className="admin-modal-close" type="button" onClick={onCancel}>×</button></div>
-    {item.type === 'image' ? <ImageCropEditor item={item} onSave={onSave} /> : <VideoTrimEditor item={item} onSave={onSave} />}
+    <div className="admin-modal-heading"><div><p className="admin-kicker">MEDIA EDITOR</p><h2 id="media-edit-title">Cắt thời lượng video</h2></div><button className="admin-modal-close" type="button" onClick={onCancel}>×</button></div>
+    <VideoTrimEditor item={item} onSave={onSave} />
+  </section></div>
+}
+
+export function ImageCropModal({ item, onCancel, onSave }: { item: MediaDraft; onCancel: () => void; onSave: (file: File) => void }) {
+  return <div className="admin-modal-backdrop media-edit-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCancel() }}><section className="admin-modal media-edit-modal" role="dialog" aria-modal="true" aria-labelledby="image-crop-title">
+    <div className="admin-modal-heading"><div><p className="admin-kicker">IMAGE EDITOR</p><h2 id="image-crop-title">Cắt ảnh</h2></div><button className="admin-modal-close" type="button" onClick={onCancel}>×</button></div>
+    <ImageCropEditor item={item} onSave={onSave} />
   </section></div>
 }
 

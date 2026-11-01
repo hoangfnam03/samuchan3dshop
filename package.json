@@ -10,13 +10,13 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "worker:typecheck": "tsc -p tsconfig.worker.json --pretty false",
-    "worker:dev": "wrangler dev --config wrangler.jsonc",
+    "worker:dev": "npm run build && npm run worker:d1:migrate && wrangler dev --config wrangler.jsonc",
     "worker:d1:migrate": "wrangler d1 migrations apply samuchan-catalog --local --config wrangler.jsonc",
     "worker:d1:migrate:remote": "wrangler d1 migrations apply samuchan-catalog --remote --config wrangler.jsonc",
     "worker:d1:seed": "wrangler d1 execute samuchan-catalog --local --file=worker/seeds/local.sql --config wrangler.jsonc",
     "worker:d1:seed:remote": "wrangler d1 execute samuchan-catalog --remote --file=worker/seeds/local.sql --config wrangler.jsonc",
     "worker:admin:hash": "node scripts/hash-password.mjs",
-    "deploy": "npm run build && wrangler deploy --config wrangler.jsonc"
+    "deploy": "npm run build && npm run worker:d1:migrate:remote && wrangler deploy --config wrangler.jsonc"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

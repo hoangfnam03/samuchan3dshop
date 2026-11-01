@@ -3,9 +3,11 @@ import type { View } from '../types'
 interface HeaderProps {
   cartCount: number
   setView: (view: View) => void
+  showFilamentShop?: boolean
+  onShop?: () => void
 }
 
-export function Header({ cartCount, setView }: HeaderProps) {
+export function Header({ cartCount, setView, showFilamentShop = false, onShop }: HeaderProps) {
   return (
     <header className="site-header">
       <div className="shell nav-inner">
@@ -14,7 +16,8 @@ export function Header({ cartCount, setView }: HeaderProps) {
         </button>
         <nav className="desktop-nav" aria-label="Điều hướng chính">
           <button onClick={() => setView('home')}>Trang chủ</button>
-          <button onClick={() => setView('shop')}>Sản phẩm</button>
+          <button onClick={() => onShop ? onShop() : setView('shop')}>Sản phẩm</button>
+          {showFilamentShop && <button onClick={() => setView('filament-shop')}>Nhựa in</button>}
           <button onClick={() => setView('tracking-login')}>Tra cứu đơn</button>
           <button onClick={() => setView('warranty')}>Trung tâm bảo hành</button>
         </nav>

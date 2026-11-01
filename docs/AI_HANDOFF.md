@@ -119,7 +119,7 @@ Kết quả: contracts tại `worker/contracts.ts`, Worker foundation tại `wor
 
 ### Phase 5 — Admin và production workflow (đã xong)
 
-Đã thêm admin authentication/session, catalog/order management, status transitions, print jobs (Waiting → Printing → Quality Check → Completed; Failed → Reprint) và giao diện admin truy cập trực tiếp tại `/admin`. Không thêm customer auth hay printer automation. Chi tiết: docs/PHASE_5_ADMIN.md.
+Đã thêm admin authentication/session, catalog/order management, status transitions, print jobs (Waiting → Printing → Quality Check → Completed; Failed → Reprint), quản lý lô mua nhựa với giá vốn bình quân gia quyền và giao diện admin truy cập trực tiếp tại `/admin`. Không thêm customer auth hay printer automation. Chi tiết: docs/PHASE_5_ADMIN.md.
 
 ### Phase 6 — Deploy và vận hành
 
@@ -143,5 +143,9 @@ Thiết lập GitHub/Cloudflare, bindings khác nhau cho dev/prod, secret qua da
 | 2026-10-04 | 3 | Tạo D1 schema/seed, binding D1/R2, catalog read API và media read route | Migration local, worker/frontend typecheck, catalog 200 và production build pass; chưa có write API hoặc deploy |
 | 2026-10-04 | 4 | Thêm create order, server-side price/stock validation, OrderItem snapshot và secure token tracking | Create 201, tracking 200, out-of-stock 409, token invalid 404; chưa có payment/auth/deploy |
 | 2026-10-04 | 5 | Thêm admin session auth, dashboard, catalog/order management, print job transitions và UI `/admin` | D1 migration 0002, login/session/dashboard/products local pass; frontend build pass; chưa deploy |
+| 2026-10-31 | 5 | Thêm khoản giá vốn ghim làm mặc định cho sản phẩm tạo sau | Migration D1 local 0016, frontend/Worker typecheck và build pass; cập nhật quyết định không hồi tố giá vốn sản phẩm cũ |
+| 2026-10-31 | 5 | Thêm lịch sử lô mua nhựa và bình quân gia quyền theo số cuộn | Migration D1 local 0023; root/Worker typecheck, build pass; không tự gán số lượng cho dữ liệu cũ; đơn mới dùng giá vốn bình quân, đơn cũ giữ snapshot |
 
 Khi hoàn thành một bước, thêm đúng một dòng: ngày, phase, phạm vi, kiểm tra đã chạy và các quyết định mới (nếu có, cập nhật `DECISIONS.md`).
+
+| 2026-10-31 | 6 | Deploy Worker `shop` và static assets; áp dụng D1 migrations 0018–0021 trên production | Build pass; migrations thành công; `/api/health` trả `ok`, catalog công khai trả 1 sản phẩm và 37 màu; không lộ link mua hàng trong catalog |
